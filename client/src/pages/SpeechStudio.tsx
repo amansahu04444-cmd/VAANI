@@ -14,6 +14,7 @@ import { BlockProgress } from '../components/ui/BlockProgress'
 import { SUPPORTED_LANGUAGES, STANDARD_VOICES, DEMO_SCRIPTS } from '../lib/constants'
 import type { VoiceMode, AudioAsset } from '../types'
 import { speechApi } from '../lib/api'
+import { useAudioEngine } from '../context/AudioContext'
 
 export interface SpeechStudioProps {
   hasVoiceProfile?: boolean
@@ -24,6 +25,7 @@ export const SpeechStudio: React.FC<SpeechStudioProps> = ({
   hasVoiceProfile = false,
   onAudioGenerated,
 }) => {
+  const { playUiSound } = useAudioEngine()
   const [scriptText, setScriptText] = useState('')
   const [scriptTitle, setScriptTitle] = useState('')
   const [selectedLanguage, setSelectedLanguage] = useState(SUPPORTED_LANGUAGES[0].code)
@@ -38,6 +40,7 @@ export const SpeechStudio: React.FC<SpeechStudioProps> = ({
   const [errorNotice, setErrorNotice] = useState<string | null>(null)
 
   const handleApplyTemplate = (template: { title: string; lang: string; text: string }) => {
+    playUiSound('click')
     setScriptTitle(template.title)
     setScriptText(template.text)
     setSelectedLanguage(template.lang)
@@ -63,6 +66,7 @@ export const SpeechStudio: React.FC<SpeechStudioProps> = ({
       return
     }
 
+    playUiSound('generate')
     setIsGenerating(true)
     setGenerationProgress(25)
     setGenerationStep('Validating input & Indic phonetic rules...')
@@ -86,6 +90,7 @@ export const SpeechStudio: React.FC<SpeechStudioProps> = ({
       setGenerationProgress(100)
       const newAsset: AudioAsset = response.asset
       setGeneratedAudio(newAsset)
+      playUiSound('success')
       if (onAudioGenerated) onAudioGenerated(newAsset)
     } catch {
       // Fallback for offline client preview
@@ -108,6 +113,7 @@ export const SpeechStudio: React.FC<SpeechStudioProps> = ({
       }
 
       setGeneratedAudio(fallbackAsset)
+      playUiSound('success')
       if (onAudioGenerated) onAudioGenerated(fallbackAsset)
     } finally {
       setTimeout(() => {
@@ -119,6 +125,7 @@ export const SpeechStudio: React.FC<SpeechStudioProps> = ({
   }
 
   const handleSaveToLibrary = () => {
+    playUiSound('click')
     setSavedSuccess(true)
     setTimeout(() => setSavedSuccess(false), 3000)
   }

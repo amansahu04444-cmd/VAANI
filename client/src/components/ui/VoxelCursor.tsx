@@ -150,7 +150,7 @@ export const VoxelCursor: React.FC = () => {
       <div
         ref={cursorDotRef}
         style={{ opacity: isVisible ? 1 : 0 }}
-        className="fixed top-0 left-0 -ml-1 -mt-1 w-2 h-2 bg-voxel-grass border border-voxel-bedrock transition-opacity duration-150 shadow-[0_0_8px_#67A94B]"
+        className="fixed top-0 left-0 -ml-1 -mt-1 w-2 h-2 bg-voxel-grass border border-voxel-bedrock transition-opacity duration-150"
       />
 
       {/* 2. Smooth Outer Tracking Ring */}
@@ -162,12 +162,12 @@ export const VoxelCursor: React.FC = () => {
         <div
           className={`-ml-4 -mt-4 transition-all duration-150 flex items-center justify-center ${
             hoverState === 'button'
-              ? 'w-10 h-10 -ml-5 -mt-5 border-2 border-voxel-gold bg-voxel-gold/10 shadow-[0_0_12px_rgba(245,213,71,0.5)]'
+              ? 'w-9 h-9 -ml-4.5 -mt-4.5 border-2 border-voxel-gold bg-voxel-gold/5 shadow-[0_0_4px_rgba(245,213,71,0.25)]'
               : hoverState === 'card'
-              ? 'w-12 h-12 -ml-6 -mt-6 border-2 border-voxel-grass/80 bg-voxel-grass/10 shadow-[0_0_12px_rgba(103,169,75,0.4)]'
+              ? 'w-10 h-10 -ml-5 -mt-5 border border-voxel-grass/80 bg-voxel-grass/5'
               : hoverState === 'input'
-              ? 'w-6 h-6 -ml-3 -mt-3 border border-voxel-sand bg-voxel-sand/15'
-              : 'w-8 h-8 rounded-full border border-voxel-grass/70 bg-transparent shadow-[0_0_8px_rgba(103,169,75,0.3)]'
+              ? 'w-6 h-6 -ml-3 -mt-3 border border-voxel-sand bg-voxel-sand/10'
+              : 'w-7 h-7 rounded-none border border-voxel-grass/60 bg-transparent'
           }`}
         >
           {/* Pixel Corner Brackets when hovering button */}
@@ -196,3 +196,4 @@ export const VoxelCursor: React.FC = () => {
     </div>
   )
 }
+

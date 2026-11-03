@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Play, Pause, Download, Volume2, RotateCcw } from 'lucide-react'
 import { BlockButton } from './BlockButton'
 import { VoxelWaveform } from './VoxelWaveform'
 import { CubeIllustration } from './CubeIllustration'
 import { BlockBadge } from './BlockBadge'
 import { formatDuration } from '../../lib/utils'
+import { useAudioEngine } from '../../context/AudioContext'
 
 export interface VoxelAudioPlayerProps {
   title: string
@@ -21,16 +22,25 @@ export const VoxelAudioPlayer: React.FC<VoxelAudioPlayerProps> = ({
   voiceLabel,
   languageName,
   durationSeconds = 14,
+  audioUrl,
   voiceMode = 'personal',
   onDownload,
 }) => {
+  const { playUiSound, connectMediaElement } = useAudioEngine()
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1.0)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+
+  useEffect(() => {
+    if (audioRef.current && audioUrl) {
+      connectMediaElement(audioRef.current)
+    }
+  }, [audioUrl, connectMediaElement])
 
   useEffect(() => {
     let interval: NodeJS.Timeout
-    if (isPlaying) {
+    if (isPlaying && !audioUrl) {
       interval = setInterval(() => {
         setCurrentTime((prev) => {
           if (prev >= durationSeconds) {
@@ -41,25 +51,78 @@ export const VoxelAudioPlayer: React.FC<VoxelAudioPlayerProps> = ({
         })
       }, 200)
     }
-    return () => clearInterval(interval)
-  }, [isPlaying, durationSeconds, playbackSpeed])
+    return () => {
+      if (interval) clearInterval(interval)
+    }
+  }, [isPlaying, durationSeconds, playbackSpeed, audioUrl])
 
-  const togglePlay = () => setIsPlaying(!isPlaying)
+  const togglePlay = () => {
+    playUiSound('click')
+    if (audioUrl && audioRef.current) {
+      if (isPlaying) {
+        audioRef.current.pause()
+        setIsPlaying(false)
+      } else {
+        audioRef.current.playbackRate = playbackSpeed
+        audioRef.current.play().catch(() => {
+          // Playback interrupted or user interaction policy
+        })
+        setIsPlaying(true)
+      }
+    } else {
+      setIsPlaying(!isPlaying)
+    }
+  }
+
   const resetAudio = () => {
+    playUiSound('click')
+    if (audioUrl && audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current.currentTime = 0
+    }
     setIsPlaying(false)
     setCurrentTime(0)
   }
 
   const cycleSpeed = () => {
-    if (playbackSpeed === 1.0) setPlaybackSpeed(1.15)
-    else if (playbackSpeed === 1.15) setPlaybackSpeed(0.85)
-    else setPlaybackSpeed(1.0)
+    playUiSound('click')
+    let nextSpeed = 1.0
+    if (playbackSpeed === 1.0) nextSpeed = 1.15
+    else if (playbackSpeed === 1.15) nextSpeed = 0.85
+    else nextSpeed = 1.0
+
+    setPlaybackSpeed(nextSpeed)
+    if (audioRef.current) {
+      audioRef.current.playbackRate = nextSpeed
+    }
   }
 
-  const progressPercent = (currentTime / durationSeconds) * 100
+  const handleTimeUpdate = () => {
+    if (audioRef.current) {
+      setCurrentTime(audioRef.current.currentTime)
+    }
+  }
+
+  const handleAudioEnded = () => {
+    setIsPlaying(false)
+    setCurrentTime(0)
+  }
+
+  const progressPercent = (currentTime / (durationSeconds || 1)) * 100
 
   return (
     <div className="bg-[#171A1E] border-2 border-[#3D434A] p-4 shadow-voxel relative">
+      {/* Hidden real audio element if URL provided */}
+      {audioUrl && (
+        <audio
+          ref={audioRef}
+          src={audioUrl}
+          onTimeUpdate={handleTimeUpdate}
+          onEnded={handleAudioEnded}
+          preload="metadata"
+        />
+      )}
+
       {/* Top pixel highlight line */}
       <div className="absolute top-0 left-0 right-0 h-[1px] bg-white/10 pointer-events-none" />
 
@@ -110,9 +173,14 @@ export const VoxelAudioPlayer: React.FC<VoxelAudioPlayerProps> = ({
         <div
           className="cursor-pointer bg-voxel-bedrock p-1 border-2 border-voxel-stone-dark/80 hover:border-voxel-gold transition-colors"
           onClick={(e) => {
+            playUiSound('click')
             const rect = e.currentTarget.getBoundingClientRect()
             const clickPos = (e.clientX - rect.left) / rect.width
-            setCurrentTime(clickPos * durationSeconds)
+            const targetTime = clickPos * durationSeconds
+            setCurrentTime(targetTime)
+            if (audioRef.current) {
+              audioRef.current.currentTime = targetTime
+            }
           }}
         >
           <VoxelWaveform

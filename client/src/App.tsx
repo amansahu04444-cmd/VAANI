@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { AudioProvider } from './context/AudioContext'
 import { AppLayout } from './components/layout/AppLayout'
 import { Landing } from './pages/Landing'
 import { Auth } from './pages/Auth'
@@ -70,48 +71,50 @@ export function App() {
   }
 
   return (
-    <BrowserRouter>
-      <Routes>
-        {/* Public Landing Page */}
-        <Route element={<AppLayout hasVoiceProfile={hasVoiceProfile} userEmail={userEmail} />}>
-          <Route path="/" element={<Landing />} />
-          <Route path="/auth" element={<Auth onLoginSuccess={(email) => setUserEmail(email)} />} />
-          <Route path="/dashboard" element={<Dashboard hasVoiceProfile={hasVoiceProfile} recentAudios={libraryAudios} />} />
-          <Route
-            path="/voice-setup"
-            element={
-              <VoiceSetup
-                currentStatus={hasVoiceProfile ? 'ready' : 'not_enrolled'}
-                onStatusChange={handleVoiceStatusChange}
-              />
-            }
-          />
-          <Route
-            path="/studio"
-            element={
-              <SpeechStudio
-                hasVoiceProfile={hasVoiceProfile}
-                onAudioGenerated={handleAudioGenerated}
-              />
-            }
-          />
-          <Route
-            path="/library"
-            element={<AudioLibrary initialAudios={libraryAudios} />}
-          />
-          <Route
-            path="/settings"
-            element={
-              <Settings
-                hasVoiceProfile={hasVoiceProfile}
-                onRevokeProfile={handleRevokeProfile}
-              />
-            }
-          />
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+    <AudioProvider>
+      <BrowserRouter>
+        <Routes>
+          {/* Public Landing Page */}
+          <Route element={<AppLayout hasVoiceProfile={hasVoiceProfile} userEmail={userEmail} />}>
+            <Route path="/" element={<Landing />} />
+            <Route path="/auth" element={<Auth onLoginSuccess={(email) => setUserEmail(email)} />} />
+            <Route path="/dashboard" element={<Dashboard hasVoiceProfile={hasVoiceProfile} recentAudios={libraryAudios} />} />
+            <Route
+              path="/voice-setup"
+              element={
+                <VoiceSetup
+                  currentStatus={hasVoiceProfile ? 'ready' : 'not_enrolled'}
+                  onStatusChange={handleVoiceStatusChange}
+                />
+              }
+            />
+            <Route
+              path="/studio"
+              element={
+                <SpeechStudio
+                  hasVoiceProfile={hasVoiceProfile}
+                  onAudioGenerated={handleAudioGenerated}
+                />
+              }
+            />
+            <Route
+              path="/library"
+              element={<AudioLibrary initialAudios={libraryAudios} />}
+            />
+            <Route
+              path="/settings"
+              element={
+                <Settings
+                  hasVoiceProfile={hasVoiceProfile}
+                  onRevokeProfile={handleRevokeProfile}
+                />
+              }
+            />
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </AudioProvider>
   )
 }
 
