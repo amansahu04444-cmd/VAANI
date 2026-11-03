@@ -4,51 +4,111 @@
 
 @layer base {
   :root {
-    --background: 222 47% 7%;
-    --foreground: 210 40% 98%;
-    --card: 222 47% 10%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222 47% 10%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 173 80% 40%;
-    --primary-foreground: 222 47% 7%;
-    --secondary: 217 33% 17%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 20% 65%;
-    --accent: 173 80% 40%;
-    --accent-foreground: 222 47% 7%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217 33% 20%;
-    --input: 217 33% 20%;
-    --ring: 173 80% 40%;
+    --background: 215 15% 10%;
+    --foreground: 75 14% 96%;
+    --card: 215 12% 14%;
+    --card-foreground: 75 14% 96%;
+    --popover: 215 12% 14%;
+    --popover-foreground: 75 14% 96%;
+    --primary: 98 40% 48%;
+    --primary-foreground: 215 15% 10%;
+    --secondary: 215 10% 19%;
+    --secondary-foreground: 75 14% 96%;
+    --muted: 215 10% 19%;
+    --muted-foreground: 210 5% 58%;
+    --accent: 48 89% 62%;
+    --accent-foreground: 215 15% 10%;
+    --destructive: 0 74% 56%;
+    --destructive-foreground: 75 14% 96%;
+    --border: 215 10% 24%;
+    --input: 215 10% 18%;
+    --ring: 98 40% 48%;
   }
 
   body {
-    background-color: #0B0F19;
-    color: #F8FAFC;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background-color: #14171A;
+    color: #F5F7F2;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     min-height: 100vh;
     overflow-x: hidden;
+    background-image: 
+      radial-gradient(#292D32 1px, transparent 1px),
+      linear-gradient(to bottom, #101316 0%, #181B1E 100%);
+    background-size: 24px 24px, 100% 100%;
   }
 }
 
-/* Custom smooth scrollbar for audio studio */
+/* Voxel World Aesthetics & Utilities */
+@layer utilities {
+  /* Crisp pixel rendering */
+  .pixelated {
+    image-rendering: pixelated;
+    shape-rendering: crispEdges;
+  }
+
+  /* 3D Block Borders & Shadows */
+  .block-border-stone {
+    border: 2px solid #3D434A;
+    box-shadow: 4px 4px 0px #101316, inset 1px 1px 0px rgba(255, 255, 255, 0.12), inset -1px -1px 0px rgba(0, 0, 0, 0.5);
+  }
+
+  .block-border-grass {
+    border: 2px solid #4D8236;
+    box-shadow: 4px 4px 0px #1D4427, inset 1px 1px 0px rgba(255, 255, 255, 0.2), inset -1px -1px 0px rgba(0, 0, 0, 0.4);
+  }
+
+  .block-border-gold {
+    border: 2px solid #D1B02B;
+    box-shadow: 4px 4px 0px #8C7314, inset 1px 1px 0px rgba(255, 255, 255, 0.35), inset -1px -1px 0px rgba(0, 0, 0, 0.35);
+  }
+
+  .block-border-redstone {
+    border: 2px solid #A82525;
+    box-shadow: 4px 4px 0px #631212, inset 1px 1px 0px rgba(255, 255, 255, 0.25), inset -1px -1px 0px rgba(0, 0, 0, 0.45);
+  }
+
+  .block-border-sky {
+    border: 2px solid #4A98C7;
+    box-shadow: 4px 4px 0px #1B4E6B, inset 1px 1px 0px rgba(255, 255, 255, 0.25), inset -1px -1px 0px rgba(0, 0, 0, 0.45);
+  }
+
+  .block-pressable {
+    transition: transform 70ms ease-out, box-shadow 70ms ease-out;
+  }
+
+  .block-pressable:active {
+    transform: translate(2px, 2px);
+    box-shadow: 2px 2px 0px #101316 !important;
+  }
+
+  /* Pixelated checkered pattern */
+  .pixel-checker {
+    background-image: 
+      linear-gradient(45deg, #1A1E22 25%, transparent 25%), 
+      linear-gradient(-45deg, #1A1E22 25%, transparent 25%), 
+      linear-gradient(45deg, transparent 75%, #1A1E22 75%), 
+      linear-gradient(-45deg, transparent 75%, #1A1E22 75%);
+    background-size: 8px 8px;
+    background-position: 0 0, 0 4px, 4px -4px, -4px 0px;
+  }
+}
+
+/* Custom Block World Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #0B0F19;
+  background: #181B1E;
+  border-left: 2px solid #292D32;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1E293B;
-  border-radius: 9999px;
+  background: #3D434A;
+  border: 2px solid #181B1E;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #334155;
+  background: #67A94B;
 }

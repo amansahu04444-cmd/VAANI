@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { FileAudio, Search, Trash2, Clock, Calendar, Sparkles } from 'lucide-react'
-import { Button } from '../components/ui/Button'
-import { Card } from '../components/ui/Card'
-import { Badge } from '../components/ui/Badge'
-import { Input } from '../components/ui/Input'
-import { Modal } from '../components/ui/Modal'
-import { AudioPlayer } from '../components/ui/AudioPlayer'
+import { FileAudio, Search, Trash2, Clock, Sparkles } from 'lucide-react'
+import { BlockButton } from '../components/ui/BlockButton'
+import { VoxelCard } from '../components/ui/VoxelCard'
+import { BlockBadge } from '../components/ui/BlockBadge'
+import { BlockInput } from '../components/ui/BlockInput'
+import { BlockModal } from '../components/ui/BlockModal'
+import { VoxelAudioPlayer } from '../components/ui/VoxelAudioPlayer'
+import { BlockEmptyState } from '../components/ui/BlockEmptyState'
 import type { AudioAsset } from '../types'
 import { formatDate } from '../lib/utils'
 import { audioApi } from '../lib/api'
@@ -99,183 +100,182 @@ export const AudioLibrary: React.FC<AudioLibraryProps> = ({
     try {
       await audioApi.delete(selectedDeleteAudio.id)
     } catch {
-      // Local fallback
+      // Offline fallback
     }
 
     setAudios((prev) => prev.filter((a) => a.id !== selectedDeleteAudio.id))
-    setSelectedDeleteAudio(null)
     setIsDeleting(false)
+    setSelectedDeleteAudio(null)
   }
 
   return (
-    <div className="space-y-8 max-w-5xl mx-auto">
-      {/* Header */}
+    <div className="space-y-8 select-none">
+      {/* Voxel Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight flex items-center gap-2.5">
-            <FileAudio className="w-7 h-7 text-teal-soft" />
-            <span>Private Audio Library</span>
+          <div className="flex items-center gap-2 mb-1">
+            <BlockBadge variant="lapis">CHEST INVENTORY</BlockBadge>
+            <span className="text-[10px] font-mono text-voxel-sand">SUPABASE PRIVATE STORAGE</span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-pixel uppercase tracking-wide text-voxel-cloud flex items-center gap-2.5">
+            <FileAudio className="w-6 h-6 text-voxel-sky" />
+            <span>AUDIO ARTIFACT CHEST</span>
           </h1>
-          <p className="text-xs sm:text-sm text-studio-400 mt-1">
-            Access, listen, download, and manage your synthesized speech assets.
+          <p className="text-xs font-sans text-voxel-stone-light mt-1">
+            Browse, replay, download, and manage your synthesized speech assets protected by 15-minute signed URLs.
           </p>
         </div>
 
         <Link to="/studio">
-          <Button size="md" leftIcon={<Sparkles className="w-4 h-4" />}>
-            Create New Speech
-          </Button>
+          <BlockButton variant="primary" size="md" rightIcon={<Sparkles className="w-4 h-4" />}>
+            CRAFT NEW SPEECH
+          </BlockButton>
         </Link>
       </div>
 
-      {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-        <div className="flex-1">
-          <Input
-            placeholder="Search by title, transcript text, or language..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            leftIcon={<Search className="w-4 h-4" />}
-          />
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0">
-          <button
-            type="button"
-            onClick={() => setVoiceModeFilter('all')}
-            className={`px-3 py-2 rounded-lg text-xs font-medium transition-colors border ${
-              voiceModeFilter === 'all'
-                ? 'bg-studio-800 text-teal-soft border-teal-glow/40'
-                : 'bg-studio-900 text-studio-400 border-studio-750 hover:text-white'
-            }`}
-          >
-            All Modes ({audios.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setVoiceModeFilter('personal')}
-            className={`px-3 py-2 rounded-lg text-xs font-medium transition-colors border ${
-              voiceModeFilter === 'personal'
-                ? 'bg-studio-800 text-teal-soft border-teal-glow/40'
-                : 'bg-studio-900 text-studio-400 border-studio-750 hover:text-white'
-            }`}
-          >
-            Personal Voice ({audios.filter((a) => a.voiceMode === 'personal').length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setVoiceModeFilter('standard')}
-            className={`px-3 py-2 rounded-lg text-xs font-medium transition-colors border ${
-              voiceModeFilter === 'standard'
-                ? 'bg-studio-800 text-teal-soft border-teal-glow/40'
-                : 'bg-studio-900 text-studio-400 border-studio-750 hover:text-white'
-            }`}
-          >
-            Standard ({audios.filter((a) => a.voiceMode === 'standard').length})
-          </button>
-        </div>
-      </div>
-
-      {/* Audio Items List */}
-      {filteredAudios.length === 0 ? (
-        <Card className="text-center py-12 space-y-3">
-          <FileAudio className="w-12 h-12 text-studio-600 mx-auto" />
-          <h3 className="text-base font-semibold text-white">No Audio Assets Found</h3>
-          <p className="text-xs text-studio-400 max-w-sm mx-auto">
-            {searchQuery
-              ? `No recordings matched "${searchQuery}". Try clearing the search or filters.`
-              : 'You have not synthesized any speech yet. Head to Speech Studio to generate your first audio.'}
-          </p>
-          <div className="pt-2">
-            <Link to="/studio">
-              <Button size="sm">Open Speech Studio</Button>
-            </Link>
+      {/* Search & Filter Hotbar */}
+      <VoxelCard biome="stone" className="p-4 space-y-4">
+        <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between">
+          {/* Search Box */}
+          <div className="flex-1 max-w-md">
+            <BlockInput
+              placeholder="Search by title, script words, or language..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              leftIcon={<Search className="w-4 h-4" />}
+            />
           </div>
-        </Card>
-      ) : (
-        <div className="space-y-4">
+
+          {/* Mode Filter Hotbar */}
+          <div className="flex items-center gap-1.5 p-1 bg-[#121417] border-2 border-voxel-stone-dark shadow-voxel-inset">
+            <button
+              onClick={() => setVoiceModeFilter('all')}
+              className={`px-3 py-1.5 text-[10px] font-pixel uppercase transition-all block-pressable border ${
+                voiceModeFilter === 'all'
+                  ? 'bg-voxel-stone-dark text-voxel-gold border-voxel-gold'
+                  : 'bg-transparent text-voxel-stone-light border-transparent hover:text-white'
+              }`}
+            >
+              ALL BLOCKS ({audios.length})
+            </button>
+            <button
+              onClick={() => setVoiceModeFilter('personal')}
+              className={`px-3 py-1.5 text-[10px] font-pixel uppercase transition-all block-pressable border ${
+                voiceModeFilter === 'personal'
+                  ? 'bg-[#153818] text-voxel-grass border-voxel-grass'
+                  : 'bg-transparent text-voxel-stone-light border-transparent hover:text-white'
+              }`}
+            >
+              PERSONAL VOICE
+            </button>
+            <button
+              onClick={() => setVoiceModeFilter('standard')}
+              className={`px-3 py-1.5 text-[10px] font-pixel uppercase transition-all block-pressable border ${
+                voiceModeFilter === 'standard'
+                  ? 'bg-[#10243D] text-voxel-sky border-voxel-sky'
+                  : 'bg-transparent text-voxel-stone-light border-transparent hover:text-white'
+              }`}
+            >
+              TIMBRE STD
+            </button>
+          </div>
+        </div>
+      </VoxelCard>
+
+      {/* Audio Artifacts Grid */}
+      {filteredAudios.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {filteredAudios.map((audio) => (
-            <Card key={audio.id} className="p-5 hover:border-studio-600 transition-all space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                <div className="space-y-1.5 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="text-base font-semibold text-white">{audio.title}</h3>
-                    <Badge variant={audio.voiceMode === 'personal' ? 'teal' : 'slate'} size="sm">
-                      {audio.voiceMode === 'personal' ? 'Your Enrolled Voice' : 'Standard Voice'}
-                    </Badge>
-                    <Badge variant="outline" size="sm" className="font-mono text-[10px]">
-                      {audio.languageCode}
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-studio-300 leading-relaxed font-sans bg-studio-900/60 p-2.5 rounded-lg border border-studio-800">
-                    "{audio.textPreview}"
-                  </p>
-                  <div className="flex items-center gap-4 text-[11px] text-studio-500 pt-1">
-                    <span className="flex items-center gap-1">
-                      <Calendar className="w-3.5 h-3.5" />
-                      <span>{formatDate(audio.createdAt)}</span>
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Clock className="w-3.5 h-3.5" />
-                      <span>{audio.durationSeconds}s duration</span>
-                    </span>
-                    <span>{(audio.fileSizeBytes / (1024 * 1024)).toFixed(2)} MB</span>
-                  </div>
+            <VoxelCard key={audio.id} biome="stone" className="space-y-4">
+              <div className="flex items-center justify-between text-[10px] font-mono text-voxel-stone-light pb-2 border-b-2 border-voxel-stone-dark/70">
+                <span className="flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-voxel-gold" />
+                  {formatDate(audio.createdAt)}
+                </span>
+                <div className="flex items-center gap-2">
+                  <BlockBadge
+                    variant={audio.voiceMode === 'personal' ? 'emerald' : 'lapis'}
+                    size="sm"
+                  >
+                    {audio.voiceMode === 'personal' ? 'PERSONAL VOICE' : 'TIMBRE STD'}
+                  </BlockBadge>
+                  <button
+                    onClick={() => setSelectedDeleteAudio(audio)}
+                    className="p-1.5 bg-[#2E1010] hover:bg-voxel-redstone text-voxel-redstone hover:text-white border border-voxel-redstone block-pressable transition-colors"
+                    title="Delete Artifact"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
                 </div>
-
-                {/* Top action: delete */}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setSelectedDeleteAudio(audio)}
-                  className="text-studio-500 hover:text-rose-400 self-start p-1.5"
-                  title="Delete Recording"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
               </div>
 
-              {/* Integrated Audio Player */}
-              <div className="pt-2 border-t border-studio-800">
-                <AudioPlayer
-                  title={audio.title}
-                  voiceLabel={audio.voiceLabel}
-                  languageName={audio.languageName}
-                  durationSeconds={audio.durationSeconds}
-                  onDownload={() => alert(`Downloading "${audio.title}.wav" (Signed URL valid for 15 minutes)...`)}
-                />
+              {/* Script Quote */}
+              <div className="bg-[#121417] p-3 border-2 border-voxel-stone-dark shadow-voxel-inset">
+                <p className="text-xs font-sans text-voxel-cloud/95 line-clamp-2 leading-relaxed italic">
+                  "{audio.textPreview}"
+                </p>
               </div>
-            </Card>
+
+              {/* Voxel Audio Player */}
+              <VoxelAudioPlayer
+                title={audio.title}
+                voiceLabel={audio.voiceLabel}
+                languageName={audio.languageName}
+                durationSeconds={audio.durationSeconds}
+                voiceMode={audio.voiceMode}
+                audioUrl={audio.audioUrl}
+              />
+            </VoxelCard>
           ))}
         </div>
+      ) : (
+        <BlockEmptyState
+          title="NO MATCHING AUDIO BLOCKS"
+          description={
+            searchQuery
+              ? `No artifacts matching "${searchQuery}". Clear search or craft a new speech block.`
+              : 'Your audio chest is empty. Launch the studio to craft your first Indic voice block.'
+          }
+          biome="sound"
+          actionLabel="LAUNCH SPEECH STUDIO"
+          onAction={() => (window.location.href = '/studio')}
+          actionVariant="primary"
+        />
       )}
 
       {/* Delete Confirmation Modal */}
-      <Modal
+      <BlockModal
         isOpen={Boolean(selectedDeleteAudio)}
         onClose={() => setSelectedDeleteAudio(null)}
-        title="Permanently Delete Audio Asset"
-        description="Are you sure you want to delete this recording from your private library?"
+        title="DELETE AUDIO ARTIFACT"
+        description="Are you sure you want to permanently delete this audio file?"
+        biome="redstone"
       >
-        <div className="space-y-4 text-xs text-studio-300">
-          <div className="bg-studio-900 p-3 rounded-lg border border-studio-800">
-            <span className="text-white font-semibold block">{selectedDeleteAudio?.title}</span>
-            <span className="text-studio-400 block mt-0.5">{selectedDeleteAudio?.languageName} • {selectedDeleteAudio?.durationSeconds}s</span>
-          </div>
-          <p>
-            Deleting this asset will remove its audio file from private object storage and purge all associated metadata.
-            This action cannot be undone.
+        <div className="space-y-4">
+          <p className="text-xs font-sans text-voxel-stone-light leading-relaxed">
+            Title: <span className="text-voxel-cloud font-pixel">{selectedDeleteAudio?.title}</span>
+            <br />
+            This will permanently remove the 48kHz WAV audio file from private Supabase Storage and invalidate any active signed URLs.
           </p>
-          <div className="flex justify-end gap-3 pt-2 border-t border-studio-750">
-            <Button variant="ghost" size="sm" onClick={() => setSelectedDeleteAudio(null)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" size="sm" isLoading={isDeleting} onClick={confirmDelete}>
-              Delete Asset
-            </Button>
+          <div className="flex items-center justify-end gap-3 pt-3">
+            <BlockButton
+              variant="outline"
+              size="sm"
+              onClick={() => setSelectedDeleteAudio(null)}
+            >
+              CANCEL
+            </BlockButton>
+            <BlockButton
+              variant="destructive"
+              size="sm"
+              onClick={confirmDelete}
+              isLoading={isDeleting}
+            >
+              CONFIRM DELETE
+            </BlockButton>
           </div>
         </div>
-      </Modal>
+      </BlockModal>
     </div>
   )
 }

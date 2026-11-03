@@ -1,12 +1,15 @@
 import React, { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Sparkles, Mic, Volume2, Languages, Sliders, CheckCircle2, Download, BookmarkPlus } from 'lucide-react'
-import { Button } from '../components/ui/Button'
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '../components/ui/Card'
-import { Badge } from '../components/ui/Badge'
-import { Textarea } from '../components/ui/Textarea'
-import { NoticeBanner } from '../components/ui/NoticeBanner'
-import { AudioPlayer } from '../components/ui/AudioPlayer'
+import { Sparkles, Mic, Volume2, BookmarkPlus, RotateCcw } from 'lucide-react'
+import { BlockButton } from '../components/ui/BlockButton'
+import { VoxelCard, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/VoxelCard'
+import { BlockBadge } from '../components/ui/BlockBadge'
+import { BlockInput } from '../components/ui/BlockInput'
+import { BlockTextarea } from '../components/ui/BlockTextarea'
+import { BlockSelect } from '../components/ui/BlockSelect'
+import { BlockNoticeBanner } from '../components/ui/BlockNoticeBanner'
+import { VoxelAudioPlayer } from '../components/ui/VoxelAudioPlayer'
+import { CubeIllustration } from '../components/ui/CubeIllustration'
+import { BlockProgress } from '../components/ui/BlockProgress'
 import { SUPPORTED_LANGUAGES, STANDARD_VOICES, DEMO_SCRIPTS } from '../lib/constants'
 import type { VoiceMode, AudioAsset } from '../types'
 import { speechApi } from '../lib/api'
@@ -28,6 +31,7 @@ export const SpeechStudio: React.FC<SpeechStudioProps> = ({
   const [speed, setSpeed] = useState<number>(1.0)
   const [isGenerating, setIsGenerating] = useState(false)
   const [generationStep, setGenerationStep] = useState<string>('')
+  const [generationProgress, setGenerationProgress] = useState<number>(0)
   const [generatedAudio, setGeneratedAudio] = useState<AudioAsset | null>(null)
   const [savedSuccess, setSavedSuccess] = useState(false)
   const [errorNotice, setErrorNotice] = useState<string | null>(null)
@@ -59,10 +63,12 @@ export const SpeechStudio: React.FC<SpeechStudioProps> = ({
     }
 
     setIsGenerating(true)
-    setGenerationStep('Validating input & script punctuation...')
+    setGenerationProgress(25)
+    setGenerationStep('Validating input & Indic phonetic rules...')
 
     setTimeout(() => {
-      setGenerationStep('Routing request to Gnani Timbre Engine (api.vachana.ai)...')
+      setGenerationProgress(65)
+      setGenerationStep('Streaming synthesis through Gnani Timbre Engine (api.vachana.ai)...')
     }, 400)
 
     try {
@@ -76,13 +82,15 @@ export const SpeechStudio: React.FC<SpeechStudioProps> = ({
         speed,
       })
 
+      setGenerationProgress(100)
       const newAsset: AudioAsset = response.asset
       setGeneratedAudio(newAsset)
       if (onAudioGenerated) onAudioGenerated(newAsset)
     } catch {
       // Fallback for offline client preview
+      setGenerationProgress(100)
       const currentLangObj = SUPPORTED_LANGUAGES.find((l) => l.code === selectedLanguage) || SUPPORTED_LANGUAGES[0]
-      const voiceLabel = voiceMode === 'personal' ? 'Your Enrolled Voice (Aman)' : `Timbre ${selectedStandardVoice}`
+      const voiceLabel = voiceMode === 'personal' ? 'Enrolled Voice (Aman)' : `Timbre ${selectedStandardVoice}`
 
       const fallbackAsset: AudioAsset = {
         id: `aud-${Date.now()}`,
@@ -101,7 +109,11 @@ export const SpeechStudio: React.FC<SpeechStudioProps> = ({
       setGeneratedAudio(fallbackAsset)
       if (onAudioGenerated) onAudioGenerated(fallbackAsset)
     } finally {
-      setIsGenerating(false)
+      setTimeout(() => {
+        setIsGenerating(false)
+        setGenerationStep('')
+        setGenerationProgress(0)
+      }, 500)
     }
   }
 
@@ -111,268 +123,190 @@ export const SpeechStudio: React.FC<SpeechStudioProps> = ({
   }
 
   return (
-    <div className="space-y-8 max-w-5xl mx-auto">
-      {/* Studio Header */}
+    <div className="space-y-8 select-none">
+      {/* Voxel Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight flex items-center gap-2.5">
-            <Sparkles className="w-7 h-7 text-teal-soft" />
-            <span>Multilingual Speech Studio</span>
+          <div className="flex items-center gap-2 mb-1">
+            <BlockBadge variant="emerald">VOXEL WORKBENCH</BlockBadge>
+            <span className="text-[10px] font-mono text-voxel-sand">GNANI TIMBRE v2.5</span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-pixel uppercase tracking-wide text-voxel-cloud flex items-center gap-2.5">
+            <Sparkles className="w-6 h-6 text-voxel-gold" />
+            <span>MULTILINGUAL SPEECH STUDIO</span>
           </h1>
-          <p className="text-xs sm:text-sm text-studio-400 mt-1">
-            Turn written scripts into natural, high-fidelity Indian speech powered by Gnani Timbre.
+          <p className="text-xs font-sans text-voxel-stone-light mt-1">
+            Craft scripts in Indian languages, select acoustic parameters, and synthesize high-resolution 48kHz audio.
           </p>
         </div>
 
-        {/* Quick Voice Mode indicator */}
-        <div className="flex items-center gap-2">
-          {voiceMode === 'personal' ? (
-            <Badge variant="teal" size="md">
-              <Mic className="w-3.5 h-3.5" />
-              <span>Personal Voice Active</span>
-            </Badge>
-          ) : (
-            <Badge variant="slate" size="md">
-              <Volume2 className="w-3.5 h-3.5" />
-              <span>Selected Voice: {selectedStandardVoice}</span>
-            </Badge>
-          )}
-        </div>
+        <CubeIllustration biome="gold" size={44} floating />
       </div>
 
-      {/* Main Studio Two-Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column: Script Editor & Templates */}
-        <div className="lg:col-span-2 space-y-6">
-          <Card glow className="space-y-4">
-            <CardHeader className="pb-2">
+      {errorNotice && (
+        <BlockNoticeBanner
+          variant="error"
+          title="STUDIO NOTICE"
+          message={errorNotice}
+          onDismiss={() => setErrorNotice(null)}
+        />
+      )}
+
+      {/* Two-Column Studio Workbench */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Left Column: Script Console (7 cols) */}
+        <div className="lg:col-span-7 space-y-4">
+          <VoxelCard biome="stone" className="space-y-4">
+            <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle className="text-base">Script Editor</CardTitle>
-                <div className="flex items-center gap-1.5 text-xs text-studio-400">
-                  <Languages className="w-3.5 h-3.5 text-teal-soft" />
-                  <span>Supports Indian Scripts & Romanized Transliteration</span>
-                </div>
+                <CardTitle>
+                  <CubeIllustration biome="stone" size={24} />
+                  <span>SCRIPT PARCHMENT</span>
+                </CardTitle>
+                <span className="text-[10px] font-mono text-voxel-sand">
+                  MAX 1,000 CHARACTERS
+                </span>
               </div>
+              <CardDescription>
+                Compose or paste your script below. Punctuation hints and Hindi/English numerals are supported.
+              </CardDescription>
             </CardHeader>
 
             <CardContent className="space-y-4">
-              {/* Optional Script Title */}
-              <div>
-                <input
-                  type="text"
-                  placeholder="Script Title (e.g. Diwali Customer Announcement)"
-                  value={scriptTitle}
-                  onChange={(e) => setScriptTitle(e.target.value)}
-                  className="w-full bg-studio-900 border border-studio-750 rounded-lg px-3.5 py-2 text-sm text-white placeholder-studio-500 focus:outline-none focus:ring-1 focus:ring-teal-glow transition-all"
-                />
-              </div>
-
-              {/* Main Textarea */}
-              <Textarea
-                placeholder="Type or paste your script here in Hindi, English, Hinglish, or any supported Indian language..."
-                value={scriptText}
-                onChange={(e) => setScriptText(e.target.value)}
-                currentLength={scriptText.length}
-                maxLength={1000}
-                className="min-h-[170px]"
+              <BlockInput
+                label="SCRIPT TITLE (OPTIONAL)"
+                placeholder="e.g. November Billing Reminder"
+                value={scriptTitle}
+                onChange={(e) => setScriptTitle(e.target.value)}
               />
 
-              {/* Sample Template Chips */}
-              <div className="space-y-1.5 pt-1">
-                <span className="text-[11px] text-studio-400 block font-medium">Quick Test Templates:</span>
+              {/* Quick Template Chips */}
+              <div className="space-y-1.5">
+                <span className="text-[10px] font-pixel text-voxel-sand uppercase">
+                  SAMPLE PROMPTS:
+                </span>
                 <div className="flex flex-wrap gap-2">
-                  {DEMO_SCRIPTS.map((template, idx) => (
+                  {DEMO_SCRIPTS.map((tmpl, idx) => (
                     <button
                       key={idx}
                       type="button"
-                      onClick={() => handleApplyTemplate(template)}
-                      className="px-2.5 py-1 text-xs bg-studio-900 hover:bg-studio-750 text-studio-300 hover:text-white rounded-md border border-studio-750 transition-colors text-left"
+                      onClick={() => handleApplyTemplate(tmpl)}
+                      className="px-2.5 py-1 text-[10px] font-pixel uppercase bg-voxel-bedrock hover:bg-voxel-stone-dark text-voxel-cloud border border-voxel-stone-dark hover:border-voxel-gold block-pressable"
                     >
-                      {template.title}
+                      {tmpl.title}
                     </button>
                   ))}
                 </div>
               </div>
 
-              {errorNotice && (
-                <NoticeBanner type="error" title="Generation Blocked">
-                  {errorNotice}
-                </NoticeBanner>
-              )}
-            </CardContent>
-
-            <CardFooter className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-3">
-              <div className="text-xs text-studio-400">
-                {isGenerating ? (
-                  <span className="text-teal-soft flex items-center gap-2 font-mono">
-                    <span className="w-2 h-2 rounded-full bg-teal-accent animate-ping"></span>
-                    <span>{generationStep}</span>
-                  </span>
-                ) : (
-                  <span>Estimated audio duration: ~{Math.max(1, Math.round(scriptText.length / 15))} sec</span>
-                )}
-              </div>
-
-              <Button
-                type="button"
-                variant="primary"
-                size="md"
-                isLoading={isGenerating}
-                onClick={handleGenerate}
-                disabled={!scriptText.trim()}
-                rightIcon={<Sparkles className="w-4 h-4" />}
-              >
-                Synthesize Speech
-              </Button>
-            </CardFooter>
-          </Card>
-
-          {/* Generated Audio Result Panel */}
-          {generatedAudio && (
-            <Card className="border-teal-glow/50 bg-studio-950/90 space-y-4" glow>
-              <div className="flex items-center justify-between pb-2 border-b border-studio-800">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                  <span className="text-sm font-semibold text-white">Generated Audio Ready</span>
-                </div>
-                <Badge variant={generatedAudio.voiceMode === 'personal' ? 'teal' : 'slate'} size="sm">
-                  {generatedAudio.voiceMode === 'personal' ? 'Your Enrolled Voice' : 'Standard Timbre Voice'}
-                </Badge>
-              </div>
-
-              <AudioPlayer
-                title={generatedAudio.title}
-                voiceLabel={generatedAudio.voiceLabel}
-                languageName={generatedAudio.languageName}
-                durationSeconds={generatedAudio.durationSeconds}
+              <BlockTextarea
+                label="SCRIPT CONTENT"
+                placeholder="Type or paste text in Hindi, Indian English, Hinglish, or any regional Indian language..."
+                value={scriptText}
+                onChange={(e) => setScriptText(e.target.value)}
+                charLimit={1000}
+                currentLength={scriptText.length}
+                rows={6}
+                required
               />
-
-              <div className="flex items-center justify-between pt-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleSaveToLibrary}
-                  leftIcon={<BookmarkPlus className="w-4 h-4" />}
-                >
-                  {savedSuccess ? 'Saved to Library!' : 'Save to Private Library'}
-                </Button>
-
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => alert(`Downloading "${generatedAudio.title}.wav" (48kHz PCM)...`)}
-                  leftIcon={<Download className="w-4 h-4" />}
-                >
-                  Download WAV
-                </Button>
-              </div>
-            </Card>
-          )}
+            </CardContent>
+          </VoxelCard>
         </div>
 
-        {/* Right Column: Voice & Speech Configuration */}
-        <div className="space-y-6">
-          <Card className="space-y-5">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Sliders className="w-4 h-4 text-teal-soft" />
-                <span>Synthesis Settings</span>
-              </CardTitle>
+        {/* Right Column: Acoustic Synthesizer Controls (5 cols) */}
+        <div className="lg:col-span-5 space-y-4">
+          <VoxelCard biome="gold" className="space-y-4">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>
+                  <CubeIllustration biome="gold" size={24} />
+                  <span>ACOUSTIC PARAMETERS</span>
+                </CardTitle>
+                <BlockBadge variant="gold">TIMBRE TTS</BlockBadge>
+              </div>
             </CardHeader>
 
-            <CardContent className="space-y-5">
-              {/* Voice Mode Selector */}
-              <div className="space-y-2">
-                <label className="block text-xs font-medium text-studio-300">Voice Synthesis Mode</label>
+            <CardContent className="space-y-4">
+              {/* Language Biome Selector */}
+              <BlockSelect
+                label="TARGET LANGUAGE BIOME"
+                value={selectedLanguage}
+                onChange={(e) => setSelectedLanguage(e.target.value)}
+                options={SUPPORTED_LANGUAGES.map((l) => ({
+                  value: l.code,
+                  label: `${l.name} (${l.code})`,
+                  sublabel: l.nativeName,
+                }))}
+              />
+
+              {/* Voice Mode Toggle */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-pixel text-voxel-sand uppercase">
+                  VOICE EMITTER MODE
+                </label>
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
                     onClick={() => setVoiceMode('personal')}
-                    className={`p-3 rounded-lg border text-left transition-all ${
+                    disabled={!hasVoiceProfile}
+                    className={`p-3 text-left border-2 block-pressable transition-all ${
                       voiceMode === 'personal'
-                        ? 'bg-teal-950/60 border-teal-glow text-white shadow-sm'
-                        : 'bg-studio-900 border-studio-750 text-studio-400 hover:bg-studio-850'
+                        ? 'bg-[#153818] border-voxel-grass shadow-voxel-grass'
+                        : 'bg-voxel-bedrock border-voxel-stone-dark opacity-60'
                     }`}
                   >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-semibold block">Personal Voice</span>
-                      <Mic className="w-3.5 h-3.5 text-teal-soft" />
+                    <div className="flex items-center gap-2 mb-1">
+                      <Mic className="w-3.5 h-3.5 text-voxel-grass" />
+                      <span className="text-[10px] font-pixel text-voxel-cloud uppercase">
+                        PERSONAL
+                      </span>
                     </div>
-                    <span className="text-[10px] text-studio-400 block leading-tight">
-                      Enrolled speaker embedding
-                    </span>
+                    <p className="text-[10px] font-mono text-voxel-stone-light">
+                      {hasVoiceProfile ? 'Cloned Voice Active' : 'Requires Enrollment'}
+                    </p>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setVoiceMode('standard')}
-                    className={`p-3 rounded-lg border text-left transition-all ${
+                    className={`p-3 text-left border-2 block-pressable transition-all ${
                       voiceMode === 'standard'
-                        ? 'bg-teal-950/60 border-teal-glow text-white shadow-sm'
-                        : 'bg-studio-900 border-studio-750 text-studio-400 hover:bg-studio-850'
+                        ? 'bg-[#10243D] border-voxel-sky shadow-voxel-sky'
+                        : 'bg-voxel-bedrock border-voxel-stone-dark'
                     }`}
                   >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-semibold block">Selected Voice</span>
-                      <Volume2 className="w-3.5 h-3.5 text-teal-soft" />
+                    <div className="flex items-center gap-2 mb-1">
+                      <Volume2 className="w-3.5 h-3.5 text-voxel-sky" />
+                      <span className="text-[10px] font-pixel text-voxel-cloud uppercase">
+                        STANDARD
+                      </span>
                     </div>
-                    <span className="text-[10px] text-studio-400 block leading-tight">
-                      Standard Timbre catalogue
-                    </span>
+                    <p className="text-[10px] font-mono text-voxel-stone-light">
+                      Timbre Studio Roster
+                    </p>
                   </button>
                 </div>
-
-                {voiceMode === 'personal' && !hasVoiceProfile && (
-                  <NoticeBanner type="warning" className="p-3 text-[11px] mt-2">
-                    <span>Voice profile not enrolled yet. </span>
-                    <Link to="/voice-setup" className="text-teal-soft underline font-medium">
-                      Enroll now
-                    </Link>
-                  </NoticeBanner>
-                )}
               </div>
 
-              {/* Standard Voice Picker (shown if standard voice mode is selected) */}
+              {/* Standard Voice Choice (if mode is standard) */}
               {voiceMode === 'standard' && (
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-medium text-studio-300">Timbre Voice</label>
-                  <select
-                    value={selectedStandardVoice}
-                    onChange={(e) => setSelectedStandardVoice(e.target.value)}
-                    className="w-full bg-studio-900 border border-studio-750 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:ring-1 focus:ring-teal-glow"
-                  >
-                    {STANDARD_VOICES.map((v) => (
-                      <option key={v.id} value={v.id}>
-                        {v.name} ({v.gender} • {v.styleDescription})
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <BlockSelect
+                  label="TIMBRE STUDIO VOICE"
+                  value={selectedStandardVoice}
+                  onChange={(e) => setSelectedStandardVoice(e.target.value)}
+                  options={STANDARD_VOICES.map((v) => ({
+                    value: v.id,
+                    label: `${v.name} (${v.gender})`,
+                    sublabel: v.primaryLanguage,
+                  }))}
+                />
               )}
 
-              {/* Target Language Dropdown */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-medium text-studio-300">Target Language Locale</label>
-                <select
-                  value={selectedLanguage}
-                  onChange={(e) => setSelectedLanguage(e.target.value)}
-                  className="w-full bg-studio-900 border border-studio-750 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:ring-1 focus:ring-teal-glow"
-                >
-                  {SUPPORTED_LANGUAGES.map((lang) => (
-                    <option key={lang.code} value={lang.code}>
-                      {lang.name} ({lang.nativeName}) — [{lang.code}]
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Speaking Speed Controller */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-medium text-studio-300">Speech Rate</span>
-                  <span className="font-mono text-teal-soft">{speed.toFixed(2)}x</span>
+              {/* Speed Slider */}
+              <div className="space-y-1.5 bg-[#121417] p-3 border-2 border-voxel-stone-dark shadow-voxel-inset">
+                <div className="flex items-center justify-between text-xs font-pixel text-voxel-sand">
+                  <span>CADENCE / SPEED</span>
+                  <span className="font-mono text-voxel-gold font-bold">{speed.toFixed(2)}x</span>
                 </div>
                 <input
                   type="range"
@@ -381,34 +315,112 @@ export const SpeechStudio: React.FC<SpeechStudioProps> = ({
                   step="0.05"
                   value={speed}
                   onChange={(e) => setSpeed(parseFloat(e.target.value))}
-                  className="w-full accent-teal-glow bg-studio-800 rounded-lg cursor-pointer"
+                  className="w-full accent-voxel-gold cursor-pointer"
                 />
-                <div className="flex justify-between text-[10px] text-studio-500 font-mono">
+                <div className="flex justify-between text-[9px] font-mono text-voxel-stone-light">
                   <span>0.85x (Slow)</span>
                   <span>1.0x (Normal)</span>
                   <span>1.15x (Fast)</span>
                 </div>
               </div>
 
-              {/* Acoustic Model Architecture Disclosure */}
-              <div className="bg-studio-900/90 rounded-lg p-3 border border-studio-800 space-y-1 text-[11px] text-studio-400">
-                <div className="flex justify-between">
-                  <span>Acoustic Engine:</span>
-                  <span className="text-white font-mono">Timbre v2.5 REST</span>
+              {/* Generation Progress Indicator */}
+              {isGenerating && (
+                <div className="space-y-2 bg-[#121417] p-3 border-2 border-voxel-gold">
+                  <div className="flex items-center justify-between text-[10px] font-pixel text-voxel-gold">
+                    <span>{generationStep}</span>
+                    <span>{generationProgress}%</span>
+                  </div>
+                  <BlockProgress
+                    value={generationProgress}
+                    max={100}
+                    variant="emerald"
+                    segments={10}
+                  />
                 </div>
-                <div className="flex justify-between">
-                  <span>Sample Rate:</span>
-                  <span className="text-white font-mono">48,000 Hz</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Container:</span>
-                  <span className="text-white font-mono">16-bit Linear PCM (WAV)</span>
-                </div>
-              </div>
+              )}
+
+              {/* Big Prominent Generate Button */}
+              <BlockButton
+                variant="primary"
+                size="lg"
+                onClick={handleGenerate}
+                isLoading={isGenerating}
+                className="w-full py-4 text-xs sm:text-sm"
+                rightIcon={<Sparkles className="w-4 h-4 text-voxel-gold" />}
+              >
+                CRAFT & SYNTHESIZE SPEECH
+              </BlockButton>
             </CardContent>
-          </Card>
+          </VoxelCard>
         </div>
       </div>
+
+      {/* Dedicated Audio Output Block */}
+      {generatedAudio && (
+        <section className="space-y-4 pt-4">
+          <div className="flex items-center gap-2">
+            <CubeIllustration biome="sound" size={28} />
+            <h2 className="text-base sm:text-lg font-pixel uppercase tracking-wide text-voxel-cloud">
+              GENERATION RESULT ARTIFACT
+            </h2>
+          </div>
+
+          <VoxelCard biome="grass" glow className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b-2 border-voxel-stone-dark/80">
+              <div className="flex items-center gap-2">
+                <BlockBadge
+                  variant={generatedAudio.voiceMode === 'personal' ? 'emerald' : 'lapis'}
+                  size="md"
+                >
+                  {generatedAudio.voiceMode === 'personal'
+                    ? 'PERSONAL CLONED VOICE (768-DIM)'
+                    : 'TIMBRE STANDARD SYNTHESIS'}
+                </BlockBadge>
+                <span className="text-[10px] font-mono text-voxel-grass font-semibold">
+                  GNANI TIMBRE 48kHz
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <BlockButton
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleSaveToLibrary}
+                  leftIcon={<BookmarkPlus className="w-3.5 h-3.5 text-voxel-gold" />}
+                >
+                  {savedSuccess ? 'SAVED TO CHEST' : 'SAVE TO CHEST'}
+                </BlockButton>
+                <BlockButton
+                  variant="gold"
+                  size="sm"
+                  onClick={handleGenerate}
+                  leftIcon={<RotateCcw className="w-3.5 h-3.5" />}
+                >
+                  RE-CRAFT
+                </BlockButton>
+              </div>
+            </div>
+
+            {/* Generated Script Quote */}
+            <div className="bg-[#121417] p-3 border-2 border-voxel-stone-dark shadow-voxel-inset">
+              <p className="text-xs font-sans text-voxel-cloud italic leading-relaxed">
+                "{generatedAudio.textPreview}"
+              </p>
+            </div>
+
+            {/* Voxel Audio Player */}
+            <VoxelAudioPlayer
+              title={generatedAudio.title}
+              voiceLabel={generatedAudio.voiceLabel}
+              languageName={generatedAudio.languageName}
+              durationSeconds={generatedAudio.durationSeconds}
+              voiceMode={generatedAudio.voiceMode}
+              audioUrl={generatedAudio.audioUrl}
+            />
+          </VoxelCard>
+        </section>
+      )}
     </div>
   )
 }

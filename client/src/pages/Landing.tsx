@@ -1,85 +1,106 @@
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Mic2, Sparkles, Languages, ArrowRight, CheckCircle2, Lock, Volume2 } from 'lucide-react'
-import { Button } from '../components/ui/Button'
-import { Card, CardHeader, CardTitle, CardDescription } from '../components/ui/Card'
-import { Badge } from '../components/ui/Badge'
-import { AudioPlayer } from '../components/ui/AudioPlayer'
+import { Mic2, Sparkles, ArrowRight, CheckCircle2, Lock } from 'lucide-react'
+import { BlockButton } from '../components/ui/BlockButton'
+import { VoxelCard, CardHeader, CardTitle, CardDescription } from '../components/ui/VoxelCard'
+import { BlockBadge } from '../components/ui/BlockBadge'
+import { VoxelAudioPlayer } from '../components/ui/VoxelAudioPlayer'
+import { CubeIllustration } from '../components/ui/CubeIllustration'
+import { PixelDivider } from '../components/ui/PixelDivider'
 import { SUPPORTED_LANGUAGES, DEMO_SCRIPTS } from '../lib/constants'
 
 export const Landing: React.FC = () => {
   const [activeDemoScript, setActiveDemoScript] = useState(DEMO_SCRIPTS[0])
 
   return (
-    <div className="space-y-24 py-6">
-      {/* Hero Section */}
-      <section className="text-center max-w-4xl mx-auto space-y-6 pt-8">
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-studio-800/90 border border-teal-glow/40 text-teal-soft text-xs font-mono shadow-sm">
-          <Sparkles className="w-3.5 h-3.5 text-teal-accent animate-pulse" />
-          <span>Powered by Gnani AI Timbre & Vachana Speech Architecture</span>
+    <div className="space-y-24 py-4 select-none">
+      {/* Voxel Hero Section */}
+      <section className="relative text-center max-w-4xl mx-auto space-y-7 pt-6">
+        {/* Floating Decorative Voxel Cubes */}
+        <div className="absolute -top-4 left-4 hidden lg:block">
+          <CubeIllustration biome="emerald" size={48} floating label="Voice Core" />
+        </div>
+        <div className="absolute top-12 right-2 hidden lg:block">
+          <CubeIllustration biome="gold" size={44} floating label="Indic v2.5" />
+        </div>
+        <div className="absolute bottom-6 left-10 hidden xl:block">
+          <CubeIllustration biome="sound" size={40} floating label="48kHz" />
         </div>
 
-        <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight text-white leading-tight">
-          Your Voice. Your Words.{' '}
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-soft via-teal-accent to-emerald-400">
-            Every Language.
+        {/* System Core Badge */}
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#171A1E] border-2 border-voxel-grass text-voxel-grass text-xs font-pixel shadow-voxel-sm">
+          <Sparkles className="w-3.5 h-3.5 animate-pulse text-voxel-gold" />
+          <span>POWERED BY GNANI AI TIMBRE & VACHANA SPEECH ARCHITECTURE</span>
+        </div>
+
+        {/* Pixel Headline */}
+        <h1 className="text-3xl sm:text-5xl lg:text-6xl font-pixel uppercase tracking-wide text-voxel-cloud leading-tight">
+          YOUR VOICE. YOUR WORDS.{' '}
+          <span className="text-voxel-grass drop-shadow-[2px_2px_0px_#1D4427]">
+            EVERY LANGUAGE.
           </span>
         </h1>
 
-        <p className="text-lg text-studio-300 max-w-2xl mx-auto leading-relaxed">
-          Record a voice sample once. Prepare scripts in Indian languages, generate speech with your personalized voice profile, and build a reusable private audio library.
+        {/* Readable Subtitle */}
+        <p className="text-sm sm:text-base text-voxel-stone-light max-w-2xl mx-auto leading-relaxed font-sans">
+          Record a 10-second voice sample once. Prepare conversational scripts across Indian languages, synthesize speech with your authentic vocal timbre, and build a reusable private block library.
         </p>
 
-        <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
+        {/* 3D Block Action Buttons */}
+        <div className="flex flex-wrap items-center justify-center gap-4 pt-2">
           <Link to="/studio">
-            <Button size="lg" className="shadow-xl shadow-teal-glow/20 px-8" rightIcon={<ArrowRight className="w-4 h-4" />}>
-              Open Speech Studio
-            </Button>
+            <BlockButton size="lg" variant="primary" rightIcon={<ArrowRight className="w-4 h-4" />}>
+              OPEN SPEECH STUDIO
+            </BlockButton>
           </Link>
           <Link to="/voice-setup">
-            <Button variant="secondary" size="lg" className="border-studio-700" leftIcon={<Mic2 className="w-4 h-4 text-teal-soft" />}>
-              Enroll Your Voice
-            </Button>
+            <BlockButton variant="gold" size="lg" leftIcon={<Mic2 className="w-4 h-4" />}>
+              ENROLL VOICE PROFILE
+            </BlockButton>
           </Link>
         </div>
 
-        {/* Trust Points */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-8 max-w-2xl mx-auto text-xs text-studio-400">
-          <div className="flex items-center justify-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-            <span>Strict Consent Verification</span>
+        {/* Block World Trust Strip */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-6 max-w-3xl mx-auto text-xs font-mono text-voxel-sand">
+          <div className="flex items-center justify-center gap-2 bg-[#171A1E] p-2.5 border-2 border-voxel-stone-dark shadow-voxel-sm">
+            <CheckCircle2 className="w-4 h-4 text-voxel-grass shrink-0" />
+            <span>DPDP Biometric Consent</span>
           </div>
-          <div className="flex items-center justify-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-            <span>10+ Indian Languages & Hinglish</span>
+          <div className="flex items-center justify-center gap-2 bg-[#171A1E] p-2.5 border-2 border-voxel-stone-dark shadow-voxel-sm">
+            <CheckCircle2 className="w-4 h-4 text-voxel-gold shrink-0" />
+            <span>11 Indic Biomes & Hinglish</span>
           </div>
-          <div className="flex items-center justify-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-            <span>Private Storage & Full Deletion</span>
+          <div className="flex items-center justify-center gap-2 bg-[#171A1E] p-2.5 border-2 border-voxel-stone-dark shadow-voxel-sm">
+            <CheckCircle2 className="w-4 h-4 text-voxel-sky shrink-0" />
+            <span>Private Storage & Signed URLs</span>
           </div>
         </div>
       </section>
 
-      {/* Interactive Audio Experience */}
+      <PixelDivider color="grass" />
+
+      {/* Interactive Voxel Jukebox Demo */}
       <section className="max-w-4xl mx-auto space-y-6">
         <div className="text-center space-y-2">
-          <Badge variant="teal">Interactive Demo</Badge>
-          <h2 className="text-2xl font-bold text-white">Experience Multilingual Voice Synthesis</h2>
-          <p className="text-xs text-studio-400">
-            Select a sample script below to inspect speech generation across Indian linguistic contexts.
+          <BlockBadge variant="gold">INTERACTIVE JUKEBOX</BlockBadge>
+          <h2 className="text-xl sm:text-2xl font-pixel uppercase text-voxel-cloud">
+            EXPERIENCE MULTILINGUAL SYNTHESIS
+          </h2>
+          <p className="text-xs font-sans text-voxel-stone-light">
+            Select a script block below to inspect speech generation across Indian linguistic contexts.
           </p>
         </div>
 
-        {/* Script Selection Chips */}
-        <div className="flex flex-wrap justify-center gap-2">
+        {/* Script Selection Blocks */}
+        <div className="flex flex-wrap justify-center gap-2.5">
           {DEMO_SCRIPTS.map((s, idx) => (
             <button
               key={idx}
               onClick={() => setActiveDemoScript(s)}
-              className={`px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+              className={`px-3 py-2 text-xs font-pixel uppercase tracking-wide transition-all border-2 block-pressable ${
                 activeDemoScript.title === s.title
-                  ? 'bg-teal-glow text-white shadow-md shadow-teal-glow/20 border border-teal-soft'
-                  : 'bg-studio-800 text-studio-300 hover:bg-studio-750 border border-studio-700'
+                  ? 'bg-voxel-grass text-voxel-bedrock border-[#88D169] shadow-voxel-grass'
+                  : 'bg-[#181B1E] text-voxel-cloud border-voxel-stone-dark hover:border-voxel-stone-light'
               }`}
             >
               {s.title}
@@ -87,81 +108,82 @@ export const Landing: React.FC = () => {
           ))}
         </div>
 
-        {/* Demo Script Display & Audio Player */}
-        <Card className="bg-studio-950/80 border-studio-800" glow>
-          <div className="space-y-4">
-            <div className="bg-studio-900 rounded-lg p-4 border border-studio-800 text-sm font-sans text-studio-200 italic leading-relaxed">
-              "{activeDemoScript.text}"
-            </div>
-            <AudioPlayer
-              title={activeDemoScript.title}
-              voiceLabel="VAANI Enrolled Speaker (Aman)"
-              languageName={
-                activeDemoScript.lang === 'hi-IN'
-                  ? 'Hindi (हिन्दी)'
-                  : activeDemoScript.lang === 'en-IN'
-                  ? 'Indian English'
-                  : 'Hinglish (Code-mixed)'
-              }
-              durationSeconds={12}
-            />
+        {/* Demo Script Display & Voxel Audio Player */}
+        <VoxelCard biome="stone" glow className="space-y-4">
+          <div className="bg-[#121417] p-4 border-2 border-voxel-stone-dark shadow-voxel-inset text-sm font-sans text-voxel-cloud italic leading-relaxed">
+            "{activeDemoScript.text}"
           </div>
-        </Card>
+          <VoxelAudioPlayer
+            title={activeDemoScript.title}
+            voiceLabel="VAANI ENROLLED SPEAKER (AMAN)"
+            voiceMode="personal"
+            languageName={
+              activeDemoScript.lang === 'hi-IN'
+                ? 'Hindi (हिन्दी)'
+                : activeDemoScript.lang === 'en-IN'
+                ? 'Indian English'
+                : 'Hinglish (Code-mixed)'
+            }
+            durationSeconds={12}
+          />
+        </VoxelCard>
       </section>
 
-      {/* How it Works / Workflow Steps */}
-      <section className="space-y-10">
+      <PixelDivider color="gold" />
+
+      {/* 3 Step Workflow in Voxel Cards */}
+      <section className="space-y-8">
         <div className="text-center space-y-2">
-          <Badge variant="slate">Engineered Workflow</Badge>
-          <h2 className="text-2xl sm:text-3xl font-bold text-white">Three Simple Steps to Multilingual Voice Output</h2>
+          <BlockBadge variant="emerald">VOXEL CRAFTING PIPELINE</BlockBadge>
+          <h2 className="text-xl sm:text-2xl font-pixel uppercase text-voxel-cloud">
+            THREE BLOCKS TO VOICE MASTERY
+          </h2>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="hover:border-studio-600 transition-all">
+          <VoxelCard biome="grass" className="space-y-3">
             <CardHeader>
-              <div className="w-10 h-10 rounded-lg bg-teal-950 border border-teal-glow/30 flex items-center justify-center text-teal-soft mb-2">
-                <Mic2 className="w-5 h-5" />
-              </div>
-              <CardTitle className="text-base">1. Consented Enrollment</CardTitle>
+              <CubeIllustration biome="grass" size={38} className="mb-2" />
+              <CardTitle className="text-sm sm:text-base">1. CONSENTED ENROLLMENT</CardTitle>
               <CardDescription>
-                Record 5 to 30 seconds of clean speech with explicit consent. Gnani AI extracts a compact numerical speaker embedding.
+                Record 5 to 30 seconds of reference audio with affirmative DPDP consent. Gnani AI extracts a 768-dimensional biometric embedding.
               </CardDescription>
             </CardHeader>
-          </Card>
+          </VoxelCard>
 
-          <Card className="hover:border-studio-600 transition-all">
+          <VoxelCard biome="gold" className="space-y-3">
             <CardHeader>
-              <div className="w-10 h-10 rounded-lg bg-teal-950 border border-teal-glow/30 flex items-center justify-center text-teal-soft mb-2">
-                <Languages className="w-5 h-5" />
-              </div>
-              <CardTitle className="text-base">2. Multilingual Scripting</CardTitle>
+              <CubeIllustration biome="gold" size={38} className="mb-2" />
+              <CardTitle className="text-sm sm:text-base">2. MULTILINGUAL SCRIPTING</CardTitle>
               <CardDescription>
-                Type or paste your announcement or note in Hindi, Indian English, Hinglish, or regional Indic languages with punctuation hints.
+                Compose scripts up to 1,000 characters in Hindi, Indian English, Hinglish, or regional Indic languages with natural currency figures (₹).
               </CardDescription>
             </CardHeader>
-          </Card>
+          </VoxelCard>
 
-          <Card className="hover:border-studio-600 transition-all">
+          <VoxelCard biome="sky" className="space-y-3">
             <CardHeader>
-              <div className="w-10 h-10 rounded-lg bg-teal-950 border border-teal-glow/30 flex items-center justify-center text-teal-soft mb-2">
-                <Volume2 className="w-5 h-5" />
-              </div>
-              <CardTitle className="text-base">3. Synthesis & Reusable Library</CardTitle>
+              <CubeIllustration biome="sound" size={38} className="mb-2" />
+              <CardTitle className="text-sm sm:text-base">3. TIMBRE SYNTHESIS</CardTitle>
               <CardDescription>
-                Gnani Timbre v2.5 synthesizes 48kHz WAV audio conditioned on your speaker embedding. Download or replay anytime.
+                Gnani Timbre v2.5 renders 48kHz WAV audio matching your vocal identity. Download, stream, or inspect in your private chest library.
               </CardDescription>
             </CardHeader>
-          </Card>
+          </VoxelCard>
         </div>
       </section>
 
-      {/* Supported Languages Matrix */}
+      <PixelDivider color="stone" />
+
+      {/* Supported Indic Language Biomes */}
       <section className="space-y-6">
         <div className="text-center space-y-2">
-          <Badge variant="teal">Coverage</Badge>
-          <h2 className="text-2xl font-bold text-white">Supported Indian Languages</h2>
-          <p className="text-xs text-studio-400">
-            Backed by Gnani AI's specialized acoustic models trained on Indic pronunciation and code-mixing.
+          <BlockBadge variant="lapis">INDIC COVERAGE</BlockBadge>
+          <h2 className="text-xl sm:text-2xl font-pixel uppercase text-voxel-cloud">
+            11 SUPPORTED LANGUAGE BIOMES
+          </h2>
+          <p className="text-xs font-sans text-voxel-stone-light">
+            Acoustic models trained on Indic pronunciation, dialectal rhythm, and Hinglish code-switching.
           </p>
         </div>
 
@@ -169,34 +191,38 @@ export const Landing: React.FC = () => {
           {SUPPORTED_LANGUAGES.map((lang) => (
             <div
               key={lang.code}
-              className="bg-studio-850/60 border border-studio-800 rounded-lg p-3 hover:border-teal-glow/40 transition-colors"
+              className="bg-[#171A1E] border-2 border-voxel-stone-dark p-3 shadow-voxel-sm hover:border-voxel-gold transition-colors"
             >
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-white">{lang.name}</span>
-                <span className="font-mono text-[10px] text-teal-soft">{lang.code}</span>
+                <span className="text-xs font-pixel text-voxel-cloud">{lang.name}</span>
+                <span className="font-mono text-[10px] text-voxel-gold font-semibold">
+                  {lang.code}
+                </span>
               </div>
-              <p className="text-xs text-studio-400 font-sans mt-0.5">{lang.nativeName}</p>
+              <p className="text-xs text-voxel-stone-light font-sans mt-1">{lang.nativeName}</p>
             </div>
           ))}
         </div>
       </section>
 
-      {/* Privacy & Trust Callout */}
-      <section className="bg-gradient-to-b from-studio-850 to-studio-950 border border-studio-800 rounded-2xl p-8 max-w-4xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+      {/* DPDP Biometric Vault Callout */}
+      <section className="bg-[#121417] border-4 border-[#3D434A] p-6 sm:p-8 max-w-4xl mx-auto shadow-voxel-lg flex flex-col md:flex-row items-center justify-between gap-6 relative">
         <div className="space-y-3">
-          <div className="flex items-center gap-2 text-teal-soft text-sm font-semibold">
-            <Lock className="w-4 h-4 text-teal-accent" />
-            <span>DPDP & Biometric Voice Security</span>
+          <div className="flex items-center gap-2 text-voxel-grass font-pixel text-xs">
+            <Lock className="w-4 h-4 text-voxel-gold" />
+            <span>DPDP ACT 2023 BIOMETRIC SAFETY GUARANTEE</span>
           </div>
-          <h3 className="text-xl font-bold text-white">Your Voice Belongs Exclusively to You</h3>
-          <p className="text-xs text-studio-300 max-w-xl leading-relaxed">
-            VAANI converts reference audio into encrypted mathematical embeddings. We never make voice profiles public, never allow unauthorized cloning of third parties, and provide instant, irrevocable profile deletion.
+          <h3 className="text-lg sm:text-xl font-pixel text-voxel-cloud uppercase">
+            YOUR VOICE REMAINS YOUR EXCLUSIVE ASSET
+          </h3>
+          <p className="text-xs text-voxel-stone-light max-w-xl leading-relaxed font-sans">
+            VAANI converts audio into encrypted numerical embeddings. Raw microphone audio is immediately purged. We never make profiles public and provide a one-click irreversible purge.
           </p>
         </div>
         <Link to="/voice-setup" className="shrink-0">
-          <Button variant="primary" size="md">
-            Start Enrollment
-          </Button>
+          <BlockButton variant="primary" size="md">
+            START ENROLLMENT
+          </BlockButton>
         </Link>
       </section>
     </div>

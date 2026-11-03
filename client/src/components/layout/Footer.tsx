@@ -1,36 +1,50 @@
 import React from 'react'
-import { ShieldCheck, Cpu, Heart } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { CubeIllustration } from '../ui/CubeIllustration'
+import { APP_NAME } from '../../lib/constants'
 
 export const Footer: React.FC = () => {
   return (
-    <footer className="w-full border-t border-studio-800 bg-studio-950/70 text-studio-400 py-8 mt-auto">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-xs">
-          <div className="flex items-center gap-2">
-            <Cpu className="w-4 h-4 text-teal-soft" />
-            <span>
-              Engineered with <strong className="text-white">Gnani AI Timbre v2.5 / v3.0</strong> & Vachana Speech Architecture
-            </span>
-          </div>
-
-          <div className="flex items-center gap-4 text-studio-400">
-            <span className="flex items-center gap-1.5 text-emerald-400/90">
-              <ShieldCheck className="w-4 h-4 text-emerald-400" />
-              <span>DPDP Consent Compliant</span>
-            </span>
-            <span>•</span>
-            <span>Great Indian AI Internship Challenge</span>
+    <footer className="w-full bg-[#121417] border-t-4 border-[#101316] text-xs font-mono text-voxel-stone-light py-8 px-4 sm:px-6 lg:px-8 mt-16 select-none">
+      <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+        {/* Brand & Biome Tag */}
+        <div className="flex items-center gap-3">
+          <CubeIllustration biome="emerald" size={28} />
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-pixel text-sm text-voxel-cloud uppercase">{APP_NAME}</span>
+              <span className="text-[9px] font-pixel px-1.5 py-0.5 bg-voxel-bedrock border border-voxel-gold text-voxel-gold">
+                VOXEL V1.0
+              </span>
+            </div>
+            <p className="text-[10px] text-voxel-stone-light">
+              Crafted for India • Powered by Gnani AI Timbre & Vachana
+            </p>
           </div>
         </div>
 
-        <div className="pt-4 border-t border-studio-900 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] text-studio-500">
-          <p>© 2026 VAANI Studio. Personal voice synthesis with explicit user ownership.</p>
-          <p className="flex items-center gap-1">
-            Built with strict security & zero client key exposure <Heart className="w-3 h-3 text-rose-500 inline fill-rose-500" />
-          </p>
+        {/* Links */}
+        <div className="flex flex-wrap items-center justify-center gap-6 text-[11px] font-pixel text-voxel-sand">
+          <Link to="/studio" className="hover:text-voxel-gold hover:underline">
+            STUDIO
+          </Link>
+          <Link to="/voice-setup" className="hover:text-voxel-gold hover:underline">
+            VOICE CRAFT
+          </Link>
+          <Link to="/library" className="hover:text-voxel-gold hover:underline">
+            CHEST / LIBRARY
+          </Link>
+          <Link to="/settings" className="hover:text-voxel-gold hover:underline">
+            DPDP PRIVACY
+          </Link>
+        </div>
+
+        {/* Challenge Attribution */}
+        <div className="text-center md:text-right text-[10px]">
+          <span className="text-voxel-grass font-pixel">GREAT INDIAN AI INTERNSHIP CHALLENGE</span>
+          <p className="text-voxel-stone-light mt-0.5">Aman Sharma • 100% DPDP Biometric Safe</p>
         </div>
       </div>
     </footer>
   )
 }
-

@@ -1,11 +1,13 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
-import { Sparkles, Mic2, FileAudio, Clock, Languages, Coins, ArrowRight } from 'lucide-react'
-import { Button } from '../components/ui/Button'
-import { Card } from '../components/ui/Card'
-import { Badge } from '../components/ui/Badge'
-import { NoticeBanner } from '../components/ui/NoticeBanner'
-import { AudioPlayer } from '../components/ui/AudioPlayer'
+import { Sparkles, Mic2, FileAudio, Clock, Languages, ArrowRight, Database } from 'lucide-react'
+import { BlockButton } from '../components/ui/BlockButton'
+import { VoxelCard } from '../components/ui/VoxelCard'
+import { BlockBadge } from '../components/ui/BlockBadge'
+import { BlockNoticeBanner } from '../components/ui/BlockNoticeBanner'
+import { VoxelAudioPlayer } from '../components/ui/VoxelAudioPlayer'
+import { CubeIllustration } from '../components/ui/CubeIllustration'
+import { PixelDivider } from '../components/ui/PixelDivider'
 import type { AudioAsset } from '../types'
 import { formatDate } from '../lib/utils'
 
@@ -35,7 +37,7 @@ const DEFAULT_RECENT_AUDIOS: AudioAsset[] = [
     durationSeconds: 14,
     fileSizeBytes: 1344800,
     createdAt: '2026-11-03T14:00:00.000Z',
-  }
+  },
 ]
 
 export interface DashboardProps {
@@ -45,212 +47,208 @@ export interface DashboardProps {
 
 export const Dashboard: React.FC<DashboardProps> = ({
   hasVoiceProfile = false,
-  recentAudios = DEFAULT_RECENT_AUDIOS
+  recentAudios = DEFAULT_RECENT_AUDIOS,
 }) => {
   return (
-    <div className="space-y-8">
-      {/* Studio Hero Action */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-studio-850 via-studio-800 to-studio-950 border border-studio-700/80 p-6 sm:p-8 shadow-2xl">
-        <div className="relative z-10 max-w-2xl space-y-3">
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-teal-950 border border-teal-glow/30 text-teal-soft text-xs font-mono">
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Ready for Multilingual Generation</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-            What would you like VAANI to say?
-          </h1>
-          <p className="text-xs sm:text-sm text-studio-300 leading-relaxed">
-            Prepare your script, select any of the 10+ supported Indic languages, and synthesize speech matching your vocal profile.
-          </p>
-          <div className="pt-2 flex flex-wrap gap-3">
-            <Link to="/studio">
-              <Button size="md" rightIcon={<ArrowRight className="w-4 h-4" />}>
-                Launch Speech Studio
-              </Button>
-            </Link>
-            {!hasVoiceProfile && (
-              <Link to="/voice-setup">
-                <Button variant="outline" size="md" leftIcon={<Mic2 className="w-4 h-4 text-teal-soft" />}>
-                  Setup Voice Profile
-                </Button>
+    <div className="space-y-8 select-none">
+      {/* Voxel Hero Command Banner */}
+      <div className="relative overflow-hidden bg-[#181B1E] border-4 border-[#3D434A] p-6 sm:p-8 shadow-voxel-lg">
+        {/* Decorative corner blocks */}
+        <div className="absolute top-0 left-0 w-3 h-3 bg-voxel-grass" />
+        <div className="absolute top-0 right-0 w-3 h-3 bg-voxel-grass" />
+        <div className="absolute bottom-0 left-0 w-3 h-3 bg-voxel-grass" />
+        <div className="absolute bottom-0 right-0 w-3 h-3 bg-voxel-grass" />
+
+        <div className="flex flex-col md:flex-row items-center justify-between gap-6 relative z-10">
+          <div className="space-y-3 max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-2.5 py-1 bg-[#121417] border border-voxel-grass text-voxel-grass text-[10px] font-pixel">
+              <Sparkles className="w-3.5 h-3.5 text-voxel-gold" />
+              <span>VOXEL STUDIO CRAFTING TABLE: READY</span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-pixel uppercase tracking-wide text-voxel-cloud">
+              WHAT WOULD YOU LIKE VAANI TO CRAFT?
+            </h1>
+            <p className="text-xs sm:text-sm text-voxel-stone-light leading-relaxed font-sans">
+              Prepare your script blocks, select across 11 Indic biomes, and synthesize high-fidelity 48kHz audio matching your personal voice timbre.
+            </p>
+            <div className="pt-2 flex flex-wrap gap-3">
+              <Link to="/studio">
+                <BlockButton variant="primary" size="md" rightIcon={<ArrowRight className="w-4 h-4" />}>
+                  LAUNCH SPEECH STUDIO
+                </BlockButton>
               </Link>
-            )}
-          </div>
-        </div>
-
-        {/* Decorative background visual */}
-        <div className="absolute right-0 top-0 bottom-0 w-1/3 opacity-10 pointer-events-none hidden md:flex items-center justify-center">
-          <Mic2 className="w-64 h-64 text-teal-soft" />
-        </div>
-      </div>
-
-      {/* Voice Profile Status Banner */}
-      {!hasVoiceProfile ? (
-        <NoticeBanner
-          type="warning"
-          title="Voice Profile Required for Personal Voice Mode"
-          action={
-            <Link to="/voice-setup">
-              <Button variant="secondary" size="sm" className="whitespace-nowrap">
-                Enroll Voice Now
-              </Button>
-            </Link>
-          }
-        >
-          You have not enrolled a personal voice profile yet. You can still test standard Timbre synthetic voices (Nalini, Pranav, Poorvi) in the studio.
-        </NoticeBanner>
-      ) : (
-        <NoticeBanner
-          type="success"
-          title="Personal Voice Active (Enrolled with Consent)"
-          action={
-            <Link to="/voice-setup">
-              <Button variant="ghost" size="sm" className="text-xs">
-                Manage Profile
-              </Button>
-            </Link>
-          }
-        >
-          Your speaker embedding is verified and securely stored in your private profile. Ready to synthesize in Hindi, English, Hinglish, and regional languages.
-        </NoticeBanner>
-      )}
-
-      {/* Overview Stat Widgets */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <Card className="p-4">
-          <div className="flex items-center justify-between text-studio-400">
-            <span className="text-xs font-medium">Generated Audio</span>
-            <FileAudio className="w-4 h-4 text-teal-soft" />
-          </div>
-          <div className="text-2xl font-bold text-white mt-2">12</div>
-          <p className="text-[11px] text-studio-500 mt-1">Saved in private library</p>
-        </Card>
-
-        <Card className="p-4">
-          <div className="flex items-center justify-between text-studio-400">
-            <span className="text-xs font-medium">Spoken Audio</span>
-            <Clock className="w-4 h-4 text-teal-soft" />
-          </div>
-          <div className="text-2xl font-bold text-white mt-2">4.8 min</div>
-          <p className="text-[11px] text-studio-500 mt-1">Total synthesized speech</p>
-        </Card>
-
-        <Card className="p-4">
-          <div className="flex items-center justify-between text-studio-400">
-            <span className="text-xs font-medium">Languages</span>
-            <Languages className="w-4 h-4 text-teal-soft" />
-          </div>
-          <div className="text-2xl font-bold text-white mt-2">3</div>
-          <p className="text-[11px] text-studio-500 mt-1">Hindi, English, Hinglish</p>
-        </Card>
-
-        <Card className="p-4">
-          <div className="flex items-center justify-between text-studio-400">
-            <span className="text-xs font-medium">Gnani Credits</span>
-            <Coins className="w-4 h-4 text-amber-400" />
-          </div>
-          <div className="text-2xl font-bold text-amber-300 mt-2">4,950</div>
-          <p className="text-[11px] text-studio-500 mt-1">5,000 allocated for challenge</p>
-        </Card>
-      </div>
-
-      {/* Recent Generations & Quick Studio Preview */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Recent Audio Column */}
-        <div className="lg:col-span-2 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-base font-semibold text-white flex items-center gap-2">
-              <FileAudio className="w-4 h-4 text-teal-soft" />
-              <span>Recent Speech Generations</span>
-            </h3>
-            <Link to="/library" className="text-xs text-teal-soft hover:underline">
-              View All Audio ({recentAudios.length})
-            </Link>
-          </div>
-
-          <div className="space-y-3">
-            {recentAudios.map((audio) => (
-              <Card key={audio.id} className="p-4 hover:border-studio-600 transition-all">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="space-y-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h4 className="text-sm font-semibold text-white truncate">{audio.title}</h4>
-                      <Badge variant={audio.voiceMode === 'personal' ? 'teal' : 'slate'} size="sm">
-                        {audio.voiceMode === 'personal' ? 'Your Enrolled Voice' : 'Standard Voice'}
-                      </Badge>
-                      <Badge variant="outline" size="sm" className="font-mono text-[10px]">
-                        {audio.languageCode}
-                      </Badge>
-                    </div>
-                    <p className="text-xs text-studio-400 line-clamp-2 leading-relaxed">
-                      "{audio.textPreview}"
-                    </p>
-                    <div className="text-[11px] text-studio-500 pt-1">
-                      Synthesized on {formatDate(audio.createdAt)} • {audio.durationSeconds}s duration
-                    </div>
-                  </div>
-                </div>
-
-                {/* Inline Player preview */}
-                <div className="mt-3 pt-3 border-t border-studio-800">
-                  <AudioPlayer
-                    title={audio.title}
-                    voiceLabel={audio.voiceLabel}
-                    languageName={audio.languageName}
-                    durationSeconds={audio.durationSeconds}
-                  />
-                </div>
-              </Card>
-            ))}
-          </div>
-        </div>
-
-        {/* Quick Voice Profile Card */}
-        <div className="space-y-4">
-          <h3 className="text-base font-semibold text-white flex items-center gap-2">
-            <Mic2 className="w-4 h-4 text-teal-soft" />
-            <span>Voice Profile Status</span>
-          </h3>
-
-          <Card className="p-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-studio-400">Speaker Identity</span>
-              {hasVoiceProfile ? (
-                <Badge variant="emerald" size="sm">Enrolled (Consented)</Badge>
+              {!hasVoiceProfile ? (
+                <Link to="/voice-setup">
+                  <BlockButton variant="gold" size="md" leftIcon={<Mic2 className="w-4 h-4" />}>
+                    ENROLL VOICE PROFILE
+                  </BlockButton>
+                </Link>
               ) : (
-                <Badge variant="amber" size="sm">Not Enrolled</Badge>
+                <Link to="/library">
+                  <BlockButton variant="secondary" size="md" leftIcon={<FileAudio className="w-4 h-4" />}>
+                    OPEN AUDIO CHEST
+                  </BlockButton>
+                </Link>
               )}
             </div>
+          </div>
 
-            <div className="bg-studio-900 rounded-lg p-3 border border-studio-800 text-xs space-y-2">
-              <div className="flex justify-between">
-                <span className="text-studio-400">Target Speaker:</span>
-                <span className="text-white font-medium">Aman Sahu</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-studio-400">Embedding Model:</span>
-                <span className="text-teal-soft font-mono">vachana-vc-v1</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-studio-400">Tensor Dimension:</span>
-                <span className="text-studio-300 font-mono">[1, 768] bfloat16</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-studio-400">Consent Audit:</span>
-                <span className="text-emerald-400">v1.0 (Nov 2026)</span>
-              </div>
-            </div>
-
-            <div className="pt-2">
-              <Link to="/voice-setup">
-                <Button variant="outline" size="sm" className="w-full">
-                  {hasVoiceProfile ? 'Manage Voice Profile' : 'Complete Voice Enrollment'}
-                </Button>
-              </Link>
-            </div>
-          </Card>
+          <div className="shrink-0 hidden md:block">
+            <CubeIllustration biome="sound" size={90} floating label="48kHz Note Block" />
+          </div>
         </div>
       </div>
+
+      {/* Voice Profile Warning Banner if not enrolled */}
+      {!hasVoiceProfile && (
+        <BlockNoticeBanner
+          variant="warning"
+          title="VOICE PROFILE NOT ENROLLED"
+          message="You have not enrolled a personal voice profile yet. You can still craft speech using standard Timbre synthetic voices (Nalini, Pranav, Poorvi) or enroll your voice in under 30 seconds."
+          action={{
+            label: "START ENROLLMENT NOW",
+            onClick: () => (window.location.href = "/voice-setup"),
+          }}
+        />
+      )}
+
+      {/* Modular HUD Stats Grid (4 Distinct Elevation Blocks) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Block 1: Voice Profile */}
+        <VoxelCard biome={hasVoiceProfile ? 'grass' : 'gold'} className="space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-pixel text-voxel-sand">VOICE CORE</span>
+            <Mic2 className="w-4 h-4 text-voxel-grass" />
+          </div>
+          <div className="flex items-center gap-3">
+            <CubeIllustration biome={hasVoiceProfile ? 'grass' : 'gold'} size={32} />
+            <div>
+              <h4 className="text-sm font-pixel text-voxel-cloud">
+                {hasVoiceProfile ? 'AMAN SHARMA' : 'NO PROFILE'}
+              </h4>
+              <p className="text-[10px] font-mono text-voxel-stone-light">
+                {hasVoiceProfile ? '768-dim Vector Active' : 'Standard Voices Only'}
+              </p>
+            </div>
+          </div>
+          <Link to="/voice-setup" className="block text-[10px] font-pixel text-voxel-gold hover:underline pt-1">
+            {hasVoiceProfile ? 'MANAGE BIOMETRICS ➔' : 'CRAFT PROFILE ➔'}
+          </Link>
+        </VoxelCard>
+
+        {/* Block 2: Model Engine */}
+        <VoxelCard biome="stone" className="space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-pixel text-voxel-sand">ENGINE</span>
+            <Database className="w-4 h-4 text-voxel-sky" />
+          </div>
+          <div>
+            <h4 className="text-sm font-pixel text-voxel-cloud">GNANI TIMBRE</h4>
+            <p className="text-[10px] font-mono text-voxel-stone-light mt-0.5">v2.5 / Vachana Model</p>
+          </div>
+          <div className="text-[10px] font-mono text-voxel-sky pt-1">
+            48,000 Hz Studio PCM
+          </div>
+        </VoxelCard>
+
+        {/* Block 3: Language Biomes */}
+        <VoxelCard biome="gold" className="space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-pixel text-voxel-sand">BIOMES</span>
+            <Languages className="w-4 h-4 text-voxel-gold" />
+          </div>
+          <div>
+            <h4 className="text-sm font-pixel text-voxel-cloud">11 LOCALES</h4>
+            <p className="text-[10px] font-mono text-voxel-stone-light mt-0.5">Indic + Auto Hinglish</p>
+          </div>
+          <div className="text-[10px] font-mono text-voxel-sand pt-1">
+            Hindi, Tamil, Telugu, etc.
+          </div>
+        </VoxelCard>
+
+        {/* Block 4: Audio Chest Library */}
+        <VoxelCard biome="sky" className="space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-pixel text-voxel-sand">AUDIO CHEST</span>
+            <FileAudio className="w-4 h-4 text-voxel-sky" />
+          </div>
+          <div>
+            <h4 className="text-sm font-pixel text-voxel-cloud">
+              {recentAudios.length} ARTIFACTS
+            </h4>
+            <p className="text-[10px] font-mono text-voxel-stone-light mt-0.5">Signed URLs (15m)</p>
+          </div>
+          <Link to="/library" className="block text-[10px] font-pixel text-voxel-sky hover:underline pt-1">
+            VIEW ALL ITEMS ➔
+          </Link>
+        </VoxelCard>
+      </div>
+
+      <PixelDivider color="stone" />
+
+      {/* Recent Generations Voxel Section */}
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <CubeIllustration biome="sound" size={24} />
+            <h2 className="text-base sm:text-lg font-pixel uppercase tracking-wide text-voxel-cloud">
+              RECENT SOUND ARTIFACTS
+            </h2>
+          </div>
+          <Link to="/library">
+            <BlockButton variant="outline" size="sm">
+              VIEW CHEST
+            </BlockButton>
+          </Link>
+        </div>
+
+        {recentAudios.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {recentAudios.map((audio) => (
+              <VoxelCard key={audio.id} biome="stone" className="space-y-3">
+                <div className="flex items-center justify-between text-[10px] font-mono text-voxel-stone-light">
+                  <span className="flex items-center gap-1">
+                    <Clock className="w-3.5 h-3.5 text-voxel-gold" />
+                    {formatDate(audio.createdAt)}
+                  </span>
+                  <BlockBadge
+                    variant={audio.voiceMode === 'personal' ? 'emerald' : 'lapis'}
+                    size="sm"
+                  >
+                    {audio.voiceMode === 'personal' ? 'PERSONAL VOICE' : 'TIMBRE STD'}
+                  </BlockBadge>
+                </div>
+
+                <div className="bg-[#121417] p-3 border border-voxel-stone-dark shadow-voxel-inset">
+                  <p className="text-xs font-sans text-voxel-cloud/90 line-clamp-2 leading-relaxed italic">
+                    "{audio.textPreview}"
+                  </p>
+                </div>
+
+                <VoxelAudioPlayer
+                  title={audio.title}
+                  voiceLabel={audio.voiceLabel}
+                  languageName={audio.languageName}
+                  durationSeconds={audio.durationSeconds}
+                  voiceMode={audio.voiceMode}
+                  audioUrl={audio.audioUrl}
+                />
+              </VoxelCard>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-12 bg-[#171A1E] border-2 border-voxel-stone-dark p-6">
+            <p className="text-xs font-pixel text-voxel-stone-light">
+              YOUR AUDIO CHEST IS EMPTY. OPEN THE STUDIO TO CRAFT YOUR FIRST SPEECH BLOCK.
+            </p>
+            <Link to="/studio" className="inline-block mt-4">
+              <BlockButton variant="primary" size="sm">
+                CRAFT SPEECH
+              </BlockButton>
+            </Link>
+          </div>
+        )}
+      </section>
     </div>
   )
 }

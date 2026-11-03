@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Mic, Square, Upload, ShieldCheck, Check, Play, Pause, Trash2, Info } from 'lucide-react'
-import { Button } from '../components/ui/Button'
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '../components/ui/Card'
-import { Badge } from '../components/ui/Badge'
-import { NoticeBanner } from '../components/ui/NoticeBanner'
-import { AudioWaveform } from '../components/ui/AudioWaveform'
-import { Modal } from '../components/ui/Modal'
+import { Mic, Square, Upload, ShieldCheck, Check, Trash2 } from 'lucide-react'
+import { BlockButton } from '../components/ui/BlockButton'
+import { VoxelCard, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/VoxelCard'
+import { BlockBadge } from '../components/ui/BlockBadge'
+import { BlockNoticeBanner } from '../components/ui/BlockNoticeBanner'
+import { VoxelWaveform } from '../components/ui/VoxelWaveform'
+import { BlockModal } from '../components/ui/BlockModal'
+import { CubeIllustration } from '../components/ui/CubeIllustration'
+import { BlockProgress } from '../components/ui/BlockProgress'
+import { PixelDivider } from '../components/ui/PixelDivider'
 import { VOICE_CONSENT_STATEMENT } from '../lib/constants'
 import type { EnrollmentStatus } from '../types'
 import { voiceApi } from '../lib/api'
@@ -135,7 +138,7 @@ export const VoiceSetup: React.FC<VoiceSetupProps> = ({
       if (onStatusChange) onStatusChange('ready')
       setApiNotice('Voice profile successfully enrolled and validated with verified consent.')
     } catch {
-      // Graceful fallback for offline demo
+      // Graceful fallback for offline evaluation
       setStatus('ready')
       if (onStatusChange) onStatusChange('ready')
       setApiNotice('Profile active in studio session.')
@@ -161,258 +164,291 @@ export const VoiceSetup: React.FC<VoiceSetupProps> = ({
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-8">
-      {/* Page Header */}
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight flex items-center gap-2.5">
-          <Mic className="w-7 h-7 text-teal-soft" />
-          <span>Personal Voice Enrollment</span>
-        </h1>
-        <p className="text-xs sm:text-sm text-studio-400 mt-1">
-          Enroll your vocal tract characteristics into an encrypted speaker embedding for multilingual speech generation.
-        </p>
+    <div className="max-w-4xl mx-auto space-y-8 select-none">
+      {/* Voxel Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <BlockBadge variant="grass">VOXEL BIOMETRICS</BlockBadge>
+            <span className="text-[10px] font-mono text-voxel-sand">VACHANA VC-v1</span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-pixel uppercase tracking-wide text-voxel-cloud flex items-center gap-2.5">
+            <Mic className="w-6 h-6 text-voxel-grass" />
+            <span>VOICE CRAFTING STATION</span>
+          </h1>
+          <p className="text-xs font-sans text-voxel-stone-light mt-1">
+            Enroll your vocal characteristics into an encrypted 768-dimensional speaker embedding for cross-lingual synthesis.
+          </p>
+        </div>
+
+        <CubeIllustration biome={status === 'ready' ? 'emerald' : 'sound'} size={44} floating />
       </div>
 
       {apiNotice && (
-        <NoticeBanner type="success" title="Enrollment Status">
-          {apiNotice}
-        </NoticeBanner>
+        <BlockNoticeBanner
+          variant="success"
+          title="ENROLLMENT CONFIRMED"
+          message={apiNotice}
+          onDismiss={() => setApiNotice(null)}
+        />
       )}
 
       {/* Active Profile Summary Card if enrolled */}
       {status === 'ready' && (
-        <Card className="border-emerald-600/40 bg-emerald-950/20 p-5 space-y-4">
-          <div className="flex items-start justify-between">
-            <div className="space-y-1">
-              <Badge variant="emerald" size="md">
-                <Check className="w-3.5 h-3.5" />
-                <span>Voice Profile Verified & Active</span>
-              </Badge>
-              <h3 className="text-base font-semibold text-white mt-2">Speaker Identity Registered</h3>
-              <p className="text-xs text-studio-300">
-                Your voice profile has been synthesized into a mathematical embedding (`[1, 768]` `torch.bfloat16`).
-                You can now synthesize speech in any supported Indian language using your voice.
+        <VoxelCard biome="grass" glow className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <BlockBadge variant="emerald">
+                  <Check className="w-3 h-3 mr-1" />
+                  <span>VOICE PROFILE ACTIVE</span>
+                </BlockBadge>
+                <span className="text-[10px] font-mono text-voxel-grass font-semibold">
+                  [1, 768] BFLOAT16 VECTOR
+                </span>
+              </div>
+              <h3 className="text-base font-pixel uppercase text-voxel-cloud">
+                SPEAKER IDENTITY REGISTERED
+              </h3>
+              <p className="text-xs font-sans text-voxel-stone-light max-w-xl leading-relaxed">
+                Your vocal tract coordinates are saved into private Supabase storage. You can now synthesize scripts in Hindi, Indian English, Hinglish, and 8 other Indian languages in your voice.
               </p>
             </div>
-            <Button
+            <BlockButton
               variant="destructive"
               size="sm"
               onClick={() => setIsDeleteModalOpen(true)}
               leftIcon={<Trash2 className="w-3.5 h-3.5" />}
+              className="shrink-0"
             >
-              Revoke & Delete
-            </Button>
+              REVOKE BIOMETRICS
+            </BlockButton>
           </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 text-xs">
-            <div className="bg-studio-900/80 p-2.5 rounded-lg border border-studio-800">
-              <span className="text-studio-500 block text-[10px] uppercase font-mono">Enrolled Locale</span>
-              <span className="font-semibold text-white">Hinglish / Hindi</span>
-            </div>
-            <div className="bg-studio-900/80 p-2.5 rounded-lg border border-studio-800">
-              <span className="text-studio-500 block text-[10px] uppercase font-mono">Sample Duration</span>
-              <span className="font-semibold text-white">{recordDuration || 14.2} seconds</span>
-            </div>
-            <div className="bg-studio-900/80 p-2.5 rounded-lg border border-studio-800">
-              <span className="text-studio-500 block text-[10px] uppercase font-mono">Consent Audit</span>
-              <span className="font-semibold text-emerald-400">Granted (v1.0)</span>
-            </div>
-            <div className="bg-studio-900/80 p-2.5 rounded-lg border border-studio-800">
-              <span className="text-studio-500 block text-[10px] uppercase font-mono">Provider Model</span>
-              <span className="font-semibold text-teal-soft font-mono">vachana-vc-v1</span>
-            </div>
-          </div>
-        </Card>
+        </VoxelCard>
       )}
 
-      {/* Recording Instructions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-        <div className="bg-studio-850 p-3.5 rounded-lg border border-studio-750 space-y-1">
-          <span className="text-teal-soft font-semibold block">1. Clean Environment</span>
-          <p className="text-studio-400">Record in a quiet room with minimal echo and zero background music or chatter.</p>
-        </div>
-        <div className="bg-studio-850 p-3.5 rounded-lg border border-studio-750 space-y-1">
-          <span className="text-teal-soft font-semibold block">2. Duration (5–30 sec)</span>
-          <p className="text-studio-400">Speak naturally for at least 10 seconds. Gnani AI requires between 5 and 30 seconds.</p>
-        </div>
-        <div className="bg-studio-850 p-3.5 rounded-lg border border-studio-750 space-y-1">
-          <span className="text-teal-soft font-semibold block">3. Suggested Script</span>
-          <p className="text-studio-400">"Namaste, mera naam Aman hai. Main VAANI multilingual studio test kar raha hoon."</p>
-        </div>
-      </div>
-
-      {/* Main Studio Recording Console */}
-      <Card glow className="space-y-6">
+      {/* Main Microphone & Audio Ingestion Station */}
+      <VoxelCard biome={isRecording ? 'redstone' : 'stone'} className="space-y-6">
         <CardHeader>
-          <CardTitle>Voice Capture Console</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle>
+              <CubeIllustration biome={isRecording ? 'redstone' : 'sound'} size={28} />
+              <span>REFERENCE AUDIO INGESTION</span>
+            </CardTitle>
+            <span className="text-[10px] font-mono text-voxel-sand">
+              REQUIRED: 5–30 SECONDS
+            </span>
+          </div>
           <CardDescription>
-            Record directly through your microphone or upload a clean studio recording.
+            Record directly from your microphone or upload a clean lossless audio recording (.wav or .mp3).
           </CardDescription>
         </CardHeader>
 
         <CardContent className="space-y-6">
-          {/* Recording Canvas */}
-          <div className="bg-studio-950/80 border border-studio-800 rounded-xl p-6 text-center space-y-4">
-            {/* Visualizer & Timer */}
-            <div className="flex flex-col items-center justify-center space-y-2">
-              <span
-                className={`text-2xl font-mono font-bold ${
-                  isRecording ? 'text-rose-400 animate-pulse' : hasRecordedSample ? 'text-teal-soft' : 'text-studio-500'
+          {validationError && (
+            <BlockNoticeBanner
+              variant="error"
+              title="VALIDATION ERROR"
+              message={validationError}
+              onDismiss={() => setValidationError(null)}
+            />
+          )}
+
+          {/* Voxel Microphone Block / Waveform Centerpiece */}
+          <div className="bg-[#121417] border-4 border-[#3D434A] p-6 shadow-voxel-inset text-center space-y-4">
+            <div className="flex justify-center">
+              <div
+                className={`w-20 h-20 border-4 flex items-center justify-center transition-all ${
+                  isRecording
+                    ? 'bg-[#381010] border-voxel-redstone animate-pulse-voxel shadow-[0_0_20px_rgba(224,62,62,0.6)]'
+                    : 'bg-[#181B1E] border-voxel-stone-dark'
                 }`}
               >
-                00:{recordDuration < 10 ? `0${recordDuration}` : recordDuration} / 00:30
-              </span>
-
-              <AudioWaveform
-                isRecording={isRecording}
-                isPlaying={isPlayingSample}
-                barCount={36}
-                progressPercent={(recordDuration / 30) * 100}
-                className="w-full max-w-sm justify-center"
-              />
-
-              <div className="text-[11px] text-studio-400">
-                {isRecording
-                  ? 'Recording in progress... Keep speaking clearly.'
-                  : hasRecordedSample
-                  ? uploadedFileName
-                    ? `Sample loaded: ${uploadedFileName} (~${recordDuration}s)`
-                    : `Recorded sample ready (${recordDuration} seconds).`
-                  : 'Press the microphone button below to start recording.'}
+                <Mic className={`w-9 h-9 ${isRecording ? 'text-voxel-redstone animate-bounce' : 'text-voxel-gold'}`} />
               </div>
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-              {!isRecording ? (
-                <Button
-                  type="button"
-                  onClick={startRecording}
+            {/* Live Waveform Stream */}
+            <div className="max-w-md mx-auto">
+              <VoxelWaveform
+                isPlaying={isRecording || isPlayingSample}
+                isRecording={isRecording}
+                barCount={36}
+                height={40}
+                variant={isRecording ? 'redstone' : 'emerald'}
+                progressPercent={hasRecordedSample ? 100 : 0}
+              />
+            </div>
+
+            {/* Timer and Meter */}
+            <div className="flex items-center justify-center gap-3 font-mono text-xs">
+              <span className="text-voxel-stone-light">RECORDED:</span>
+              <span className={`font-pixel text-sm px-2 py-0.5 bg-voxel-bedrock border ${isRecording ? 'text-voxel-redstone border-voxel-redstone' : 'text-voxel-gold border-voxel-stone-dark'}`}>
+                {String(recordDuration).padStart(2, '0')}:00 / 00:30 SEC
+              </span>
+            </div>
+
+            {/* Block Progress indicator for 30s limit */}
+            <div className="max-w-xs mx-auto">
+              <BlockProgress
+                value={recordDuration}
+                max={30}
+                variant={isRecording ? 'redstone' : 'gold'}
+                segments={10}
+              />
+            </div>
+          </div>
+
+          {/* Dual Action Rows: Record vs Upload */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Record Control */}
+            <div className="bg-[#181B1E] p-4 border-2 border-voxel-stone-dark shadow-voxel-sm space-y-3 flex flex-col justify-between">
+              <div>
+                <h4 className="text-xs font-pixel text-voxel-cloud uppercase flex items-center gap-2">
+                  <span>MICROPHONE STATION</span>
+                </h4>
+                <p className="text-[11px] font-sans text-voxel-stone-light mt-1">
+                  Speak clearly into your microphone in a quiet room.
+                </p>
+              </div>
+
+              {isRecording ? (
+                <BlockButton
+                  variant="redstone"
+                  size="md"
+                  onClick={stopRecording}
+                  leftIcon={<Square className="w-4 h-4 fill-current" />}
+                  className="w-full"
+                >
+                  STOP RECORDING
+                </BlockButton>
+              ) : (
+                <BlockButton
                   variant="primary"
                   size="md"
-                  className="bg-rose-600 hover:bg-rose-500 shadow-rose-600/20"
+                  onClick={startRecording}
                   leftIcon={<Mic className="w-4 h-4" />}
+                  className="w-full"
                 >
-                  {hasRecordedSample ? 'Re-record Sample' : 'Start Recording'}
-                </Button>
-              ) : (
-                <Button
-                  type="button"
-                  onClick={stopRecording}
-                  variant="destructive"
-                  size="md"
-                  leftIcon={<Square className="w-4 h-4" />}
-                >
-                  Stop Recording ({recordDuration}s)
-                </Button>
-              )}
-
-              {hasRecordedSample && !isRecording && (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="md"
-                  onClick={() => setIsPlayingSample(!isPlayingSample)}
-                  leftIcon={isPlayingSample ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-                >
-                  {isPlayingSample ? 'Pause Sample' : 'Listen to Sample'}
-                </Button>
+                  START 10s RECORDING
+                </BlockButton>
               )}
             </div>
 
-            {/* Alternative File Upload */}
-            <div className="pt-4 border-t border-studio-850 flex items-center justify-center">
-              <label className="cursor-pointer text-xs text-studio-400 hover:text-teal-soft flex items-center gap-1.5 transition-colors">
-                <Upload className="w-3.5 h-3.5" />
-                <span>Or upload reference audio (.wav or .mp3, max 10MB)</span>
+            {/* File Upload Control */}
+            <div className="bg-[#181B1E] p-4 border-2 border-voxel-stone-dark shadow-voxel-sm space-y-3 flex flex-col justify-between">
+              <div>
+                <h4 className="text-xs font-pixel text-voxel-cloud uppercase flex items-center gap-2">
+                  <span>AUDIO FILE UPLOAD</span>
+                </h4>
+                <p className="text-[11px] font-sans text-voxel-stone-light mt-1">
+                  Upload existing voice recording (WAV / MP3, max 10MB).
+                </p>
+              </div>
+
+              <label className="block w-full">
                 <input
                   type="file"
-                  accept="audio/wav, audio/mp3, audio/mpeg"
+                  accept="audio/wav,audio/mp3"
                   className="hidden"
                   onChange={handleFileUpload}
                   disabled={isRecording}
                 />
+                <span className="inline-flex items-center justify-center font-pixel text-xs tracking-wider uppercase bg-[#2A2E33] hover:bg-[#383E45] text-voxel-cloud border-2 border-[#525A63] border-b-[#121417] border-r-[#121417] shadow-voxel px-4 py-2.5 w-full cursor-pointer block-pressable">
+                  <Upload className="w-4 h-4 mr-2 text-voxel-gold" />
+                  {uploadedFileName ? 'CHANGE AUDIO FILE' : 'CHOOSE AUDIO FILE'}
+                </span>
               </label>
             </div>
           </div>
 
-          {/* Validation Error Banner */}
-          {validationError && (
-            <NoticeBanner type="error" title="Validation Notice">
-              {validationError}
-            </NoticeBanner>
+          {/* Sample Verification Bar */}
+          {hasRecordedSample && (
+            <div className="bg-[#153818] border-2 border-voxel-grass p-3.5 shadow-voxel-sm flex items-center justify-between gap-4">
+              <div className="flex items-center gap-2 min-w-0">
+                <Check className="w-4 h-4 text-voxel-grass shrink-0" />
+                <span className="text-xs font-pixel text-voxel-cloud truncate">
+                  {uploadedFileName ? `FILE: ${uploadedFileName}` : `MICROPHONE SAMPLE: ${recordDuration}s READY`}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsPlayingSample(!isPlayingSample)}
+                className="px-3 py-1 bg-voxel-bedrock hover:bg-voxel-stone-dark text-[10px] font-pixel text-voxel-grass border border-voxel-grass block-pressable shrink-0"
+              >
+                {isPlayingSample ? 'PAUSE' : 'TEST PLAY'}
+              </button>
+            </div>
           )}
 
-          {/* Explicit Consent Checkbox */}
-          <div className="bg-studio-900 border border-studio-800 rounded-xl p-4 space-y-3">
-            <div className="flex items-start gap-3">
+          <PixelDivider color="stone" />
+
+          {/* DPDP Consent Checklist Gate */}
+          <div className="bg-[#1A1812] border-2 border-voxel-gold p-4 shadow-voxel-gold space-y-3">
+            <div className="flex items-center gap-2 text-xs font-pixel text-voxel-gold uppercase">
+              <ShieldCheck className="w-4 h-4 text-voxel-gold" />
+              <span>DPDP ACT 2023 EXPLICIT BIOMETRIC CONSENT</span>
+            </div>
+            <p className="text-xs font-sans text-voxel-stone-light leading-relaxed">
+              {VOICE_CONSENT_STATEMENT}
+            </p>
+            <label className="flex items-center gap-3 pt-1 cursor-pointer select-none">
               <input
-                id="voice-consent-checkbox"
                 type="checkbox"
                 checked={consentAccepted}
                 onChange={(e) => setConsentAccepted(e.target.checked)}
-                className="mt-1 w-4 h-4 rounded border-studio-700 bg-studio-800 text-teal-glow focus:ring-teal-glow focus:ring-offset-studio-900 cursor-pointer"
+                className="w-4 h-4 rounded-none bg-voxel-bedrock border-2 border-voxel-gold text-voxel-grass focus:ring-0 cursor-pointer"
               />
-              <label htmlFor="voice-consent-checkbox" className="text-xs text-studio-300 leading-relaxed cursor-pointer select-none">
-                <strong className="text-white block mb-1 flex items-center gap-1.5">
-                  <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                  <span>Sole Voice Ownership & Processing Consent (Required)</span>
-                </strong>
-                {VOICE_CONSENT_STATEMENT}
-              </label>
-            </div>
-
-            <div className="flex items-center justify-between text-[11px] text-studio-500 pt-1 border-t border-studio-850">
-              <span>Consent Protocol: DPDP Audit v1.0</span>
-              <span className="font-mono">Timestamp: Nov 2026</span>
-            </div>
+              <span className="text-xs font-pixel text-voxel-cloud uppercase">
+                I GRANT AFFIRMATIVE CONSENT TO EXTRACT MY SPEAKER EMBEDDING
+              </span>
+            </label>
           </div>
-        </CardContent>
 
-        <CardFooter className="flex justify-between items-center">
-          <span className="text-xs text-studio-400 flex items-center gap-1.5">
-            <Info className="w-4 h-4 text-studio-500" />
-            <span>Endpoint: `POST /api/voice/enroll`</span>
-          </span>
-
-          <Button
-            type="button"
+          {/* Submit Enrollment Button */}
+          <BlockButton
             variant="primary"
-            size="md"
-            isLoading={isProcessing}
+            size="lg"
             onClick={handleSubmitEnrollment}
-            disabled={!hasRecordedSample || !consentAccepted || isRecording}
+            disabled={!hasRecordedSample || !consentAccepted}
+            isLoading={isProcessing}
+            className="w-full"
           >
-            {status === 'ready' ? 'Update Enrolled Voice Profile' : 'Enroll Voice Profile'}
-          </Button>
-        </CardFooter>
-      </Card>
+            EXTRACT & ENROLL 768-DIM VOICE VECTOR
+          </BlockButton>
+        </CardContent>
+      </VoxelCard>
 
-      {/* Delete / Revoke Confirmation Modal */}
-      <Modal
+      {/* Confirmation Modal for Profile Revocation */}
+      <BlockModal
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
-        title="Revoke Voice Consent & Delete Profile"
-        description="This action immediately and irreversibly purges your speaker embedding from VAANI."
+        title="PERMANENT BIOMETRIC PURGE"
+        description="Are you sure you want to permanently revoke consent and purge your voice profile from the database?"
+        biome="redstone"
       >
-        <div className="space-y-4 text-xs text-studio-300">
-          <p>
-            Under our data protection policy, revoking consent will immediately delete your numerical speaker embedding
-            (`[1, 768]`) and any cached voice models associated with your account.
+        <div className="space-y-4">
+          <p className="text-xs font-sans text-voxel-stone-light leading-relaxed">
+            This will permanently delete the 768-dimensional speaker embedding vector from Supabase and log a DPDP revocation event in the consent ledger. You will immediately revert to standard synthetic voices.
           </p>
-          <p className="text-amber-300">
-            You will no longer be able to synthesize speech in Personal Voice mode until you enroll again.
-          </p>
-          <div className="flex justify-end gap-3 pt-3 border-t border-studio-750">
-            <Button variant="ghost" size="sm" onClick={() => setIsDeleteModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" size="sm" onClick={handleRevokeProfile}>
-              Confirm Permanent Deletion
-            </Button>
+          <div className="flex items-center justify-end gap-3 pt-3">
+            <BlockButton
+              variant="outline"
+              size="sm"
+              onClick={() => setIsDeleteModalOpen(false)}
+            >
+              CANCEL
+            </BlockButton>
+            <BlockButton
+              variant="destructive"
+              size="sm"
+              onClick={handleRevokeProfile}
+            >
+              CONFIRM PURGE
+            </BlockButton>
           </div>
         </div>
-      </Modal>
+      </BlockModal>
     </div>
   )
 }

@@ -1,9 +1,11 @@
 import React, { useState } from 'react'
-import { Settings as SettingsIcon, Shield, Key, Info, Cpu } from 'lucide-react'
-import { Button } from '../components/ui/Button'
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/Card'
-import { NoticeBanner } from '../components/ui/NoticeBanner'
-import { Modal } from '../components/ui/Modal'
+import { Settings as SettingsIcon, Shield, Key, Cpu, Trash2 } from 'lucide-react'
+import { BlockButton } from '../components/ui/BlockButton'
+import { VoxelCard, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/VoxelCard'
+import { BlockBadge } from '../components/ui/BlockBadge'
+import { BlockNoticeBanner } from '../components/ui/BlockNoticeBanner'
+import { BlockModal } from '../components/ui/BlockModal'
+import { CubeIllustration } from '../components/ui/CubeIllustration'
 
 export interface SettingsProps {
   hasVoiceProfile?: boolean
@@ -26,181 +28,216 @@ export const Settings: React.FC<SettingsProps> = ({
   }
 
   return (
-    <div className="space-y-8 max-w-4xl mx-auto">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight flex items-center gap-2.5">
-          <SettingsIcon className="w-7 h-7 text-teal-soft" />
-          <span>Studio Settings & Privacy</span>
-        </h1>
-        <p className="text-xs sm:text-sm text-studio-400 mt-1">
-          Manage your account, biometric voice retention policies, and data protection settings.
-        </p>
+    <div className="space-y-8 max-w-4xl mx-auto select-none">
+      {/* Voxel Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <BlockBadge variant="stone">SYSTEM PREFERENCES</BlockBadge>
+            <span className="text-[10px] font-mono text-voxel-sand">DPDP SECURITY</span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-pixel uppercase tracking-wide text-voxel-cloud flex items-center gap-2.5">
+            <SettingsIcon className="w-6 h-6 text-voxel-gold" />
+            <span>STUDIO SETTINGS & PRIVACY</span>
+          </h1>
+          <p className="text-xs font-sans text-voxel-stone-light mt-1">
+            Configure your account credentials, manage biometric data retention, and audit DPDP consent.
+          </p>
+        </div>
+
+        <CubeIllustration biome="stone" size={44} floating />
       </div>
 
       {profilePurged && (
-        <NoticeBanner type="success" title="Voice Profile Successfully Purged">
-          Your speaker embedding and consent tokens have been permanently deleted from database and storage.
-        </NoticeBanner>
+        <BlockNoticeBanner
+          variant="success"
+          title="BIOMETRIC PROFILE PURGED"
+          message="Your 768-dimensional speaker embedding and reference audio have been permanently deleted from Supabase. A revocation event has been recorded in the audit ledger."
+          onDismiss={() => setProfilePurged(false)}
+        />
       )}
 
-      {/* Account & Hackathon Credentials */}
-      <Card>
+      {/* Block 1: Account & Hackathon Credentials */}
+      <VoxelCard biome="stone" className="space-y-4">
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Key className="w-4 h-4 text-teal-soft" />
-            <span>Account & Challenge Allocation</span>
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle>
+              <Key className="w-4 h-4 text-voxel-gold" />
+              <span>ACCOUNT & CHALLENGE ALLOCATION</span>
+            </CardTitle>
+            <BlockBadge variant="gold">PARTICIPANT</BlockBadge>
+          </div>
           <CardDescription>
-            Account details for the Great Indian AI Internship Challenge.
+            Participant account details for the Great Indian AI Internship Challenge.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-            <div className="bg-studio-900 p-3 rounded-lg border border-studio-800 space-y-1">
-              <span className="text-studio-500 block text-[10px] uppercase font-mono">User Name</span>
-              <span className="font-semibold text-white">Aman Sahu</span>
+
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-mono">
+            <div className="bg-[#121417] p-3.5 border-2 border-voxel-stone-dark shadow-voxel-inset space-y-1">
+              <span className="text-[9px] uppercase font-pixel text-voxel-sand block">
+                CANDIDATE NAME
+              </span>
+              <span className="text-sm font-semibold text-voxel-cloud">Aman Sahu</span>
             </div>
-            <div className="bg-studio-900 p-3 rounded-lg border border-studio-800 space-y-1">
-              <span className="text-studio-500 block text-[10px] uppercase font-mono">Email</span>
-              <span className="font-semibold text-white">amansahu04444@gmail.com</span>
+
+            <div className="bg-[#121417] p-3.5 border-2 border-voxel-stone-dark shadow-voxel-inset space-y-1">
+              <span className="text-[9px] uppercase font-pixel text-voxel-sand block">
+                EMAIL IDENTIFIER
+              </span>
+              <span className="text-sm font-semibold text-voxel-cloud">amansahu04444@gmail.com</span>
             </div>
-            <div className="bg-studio-900 p-3 rounded-lg border border-studio-800 space-y-1">
-              <span className="text-studio-500 block text-[10px] uppercase font-mono">Allocated Credits</span>
-              <span className="font-semibold text-amber-300">5,000 Programme Credits</span>
+
+            <div className="bg-[#121417] p-3.5 border-2 border-voxel-stone-dark shadow-voxel-inset space-y-1">
+              <span className="text-[9px] uppercase font-pixel text-voxel-sand block">
+                ALLOTMENT
+              </span>
+              <span className="text-sm font-semibold text-voxel-gold">5,000 PROGRAMME CREDITS</span>
             </div>
-            <div className="bg-studio-900 p-3 rounded-lg border border-studio-800 space-y-1">
-              <span className="text-studio-500 block text-[10px] uppercase font-mono">Access Tier</span>
-              <span className="font-semibold text-teal-soft">Gnani AI Internship Participant</span>
+
+            <div className="bg-[#121417] p-3.5 border-2 border-voxel-stone-dark shadow-voxel-inset space-y-1">
+              <span className="text-[9px] uppercase font-pixel text-voxel-sand block">
+                TIER
+              </span>
+              <span className="text-sm font-semibold text-voxel-grass">GNANI AI CHALLENGE</span>
             </div>
           </div>
         </CardContent>
-      </Card>
+      </VoxelCard>
 
-      {/* Voice Biometrics & DPDP Compliance */}
-      <Card glow>
+      {/* Block 2: Voice Biometrics & DPDP Compliance */}
+      <VoxelCard biome="grass" glow className="space-y-4">
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Shield className="w-4 h-4 text-emerald-400" />
-            <span>Voice Biometric Data & Retention (DPDP)</span>
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle>
+              <Shield className="w-4 h-4 text-voxel-grass" />
+              <span>VOICE BIOMETRIC DATA & RETENTION (DPDP)</span>
+            </CardTitle>
+            <BlockBadge variant="emerald">DPDP 2023</BlockBadge>
+          </div>
           <CardDescription>
-            Control how your biometric voice recording is stored and processed.
+            Control how your biometric voice recording is stored, transformed, and pruned.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-5 text-xs text-studio-300">
-          <div className="flex items-start justify-between gap-4 p-3.5 bg-studio-900 rounded-lg border border-studio-800">
+
+        <CardContent className="space-y-4 text-xs">
+          {/* Toggle Block */}
+          <div className="flex items-start justify-between gap-4 p-4 bg-[#121417] border-2 border-voxel-stone-dark shadow-voxel-inset">
             <div className="space-y-1">
-              <span className="font-semibold text-white block">Auto-Purge Raw Audio Samples</span>
-              <p className="text-studio-400 leading-relaxed">
-                Immediately delete reference microphone recordings after extracting the numerical embedding vector
-                (`[1, 768]`). Recommended for maximum biometric privacy.
+              <span className="font-pixel text-xs text-voxel-cloud uppercase block">
+                AUTO-PURGE RAW AUDIO SAMPLES
+              </span>
+              <p className="text-voxel-stone-light font-sans text-xs leading-relaxed">
+                Immediately delete reference microphone recordings after extracting the mathematical embedding vector (`[1, 768]`). Recommended for maximum biometric privacy.
               </p>
             </div>
             <input
               type="checkbox"
               checked={discardRawAudio}
               onChange={(e) => setDiscardRawAudio(e.target.checked)}
-              className="mt-1 w-4 h-4 rounded border-studio-700 bg-studio-800 text-teal-glow focus:ring-teal-glow cursor-pointer"
+              className="mt-1 w-5 h-5 rounded-none bg-voxel-bedrock border-2 border-voxel-grass text-voxel-grass focus:ring-0 cursor-pointer"
             />
           </div>
 
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-3.5 bg-rose-950/20 border border-rose-800/40 rounded-lg">
+          {/* Profile Status & Revocation Block */}
+          <div className="p-4 bg-[#121417] border-2 border-voxel-stone-dark shadow-voxel-inset flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="space-y-1">
-              <span className="font-semibold text-rose-300 block">Revoke Voice Profile & Embeddings</span>
-              <p className="text-studio-400">
-                Permanently delete your enrolled speaker profile and purge all associated metadata.
+              <span className="font-pixel text-xs text-voxel-cloud uppercase block">
+                ACTIVE BIOMETRIC EMBEDDING
+              </span>
+              <p className="text-voxel-stone-light font-sans text-xs">
+                {hasVoiceProfile
+                  ? '768-dimensional float vector stored in private Supabase bucket.'
+                  : 'No active profile enrolled.'}
               </p>
             </div>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => setIsDeleteModalOpen(true)}
-              disabled={!hasVoiceProfile}
-              className="whitespace-nowrap"
-            >
-              Revoke Consent & Delete
-            </Button>
+
+            {hasVoiceProfile ? (
+              <BlockButton
+                variant="destructive"
+                size="sm"
+                onClick={() => setIsDeleteModalOpen(true)}
+                leftIcon={<Trash2 className="w-3.5 h-3.5" />}
+                className="shrink-0"
+              >
+                REVOKE & PURGE
+              </BlockButton>
+            ) : (
+              <span className="text-[10px] font-pixel text-voxel-gold uppercase">
+                STATUS: NOT ENROLLED
+              </span>
+            )}
           </div>
         </CardContent>
-      </Card>
+      </VoxelCard>
 
-      {/* AI Speech Transparency & Labeling Policy */}
-      <Card>
+      {/* Block 3: Gnani AI Gateway & Technical Parameters */}
+      <VoxelCard biome="stone" className="space-y-4">
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Info className="w-4 h-4 text-teal-soft" />
-            <span>AI-Generated Speech Disclosure Policy</span>
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle>
+              <Cpu className="w-4 h-4 text-voxel-sky" />
+              <span>GNANI AI GATEWAY PARAMETERS</span>
+            </CardTitle>
+            <BlockBadge variant="lapis">SERVER-SIDE</BlockBadge>
+          </div>
         </CardHeader>
-        <CardContent className="space-y-3 text-xs text-studio-400 leading-relaxed">
-          <p>
-            In compliance with responsible AI standards and Indian data protection directives:
-          </p>
-          <ul className="list-disc pl-5 space-y-1 text-studio-300">
-            <li>All generated audio files include metadata tags explicitly identifying them as AI-synthesized speech.</li>
-            <li>Voice cloning is strictly confined to consented personal audio profiles; third-party or celebrity impersonation is blocked.</li>
-            <li>Users can verify whether generated speech was produced via a personalized speaker embedding or standard synthetic voices.</li>
-          </ul>
-        </CardContent>
-      </Card>
 
-      {/* System Infrastructure Specifications */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Cpu className="w-4 h-4 text-teal-soft" />
-            <span>System Stack & Provider Endpoints</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2 text-xs">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-studio-300 font-mono text-[11px]">
-            <div className="bg-studio-900 p-2.5 rounded border border-studio-800">
-              <span className="text-studio-500 block text-[10px]">TTS Synthesis Engine:</span>
-              <span>Gnani Timbre v2.5 / v3.0 (api.vachana.ai)</span>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs font-mono">
+            <div className="bg-[#121417] p-3 border border-voxel-stone-dark">
+              <span className="text-voxel-sand font-pixel text-[9px] block">TTS MODEL</span>
+              <span className="text-voxel-cloud">timbre-v2.5 (Indic Deep Neural)</span>
             </div>
-            <div className="bg-studio-900 p-2.5 rounded border border-studio-800">
-              <span className="text-studio-500 block text-[10px]">Voice Cloning Endpoint:</span>
-              <span>/api/v1/tts/voice-clone/embeddings</span>
+
+            <div className="bg-[#121417] p-3 border border-voxel-stone-dark">
+              <span className="text-voxel-sand font-pixel text-[9px] block">VC ARCHITECTURE</span>
+              <span className="text-voxel-cloud">vachana-vc-v1 (768-dim Embedding)</span>
             </div>
-            <div className="bg-studio-900 p-2.5 rounded border border-studio-800">
-              <span className="text-studio-500 block text-[10px]">Auth & PostgreSQL:</span>
-              <span>Supabase Managed Auth + Row-Level Security</span>
+
+            <div className="bg-[#121417] p-3 border border-voxel-stone-dark">
+              <span className="text-voxel-sand font-pixel text-[9px] block">AUDIO STREAM</span>
+              <span className="text-voxel-cloud">48,000 Hz Lossless PCM WAV</span>
             </div>
-            <div className="bg-studio-900 p-2.5 rounded border border-studio-800">
-              <span className="text-studio-500 block text-[10px]">Object Storage:</span>
-              <span>Private S3 Buckets (15-min Signed URLs)</span>
+
+            <div className="bg-[#121417] p-3 border border-voxel-stone-dark">
+              <span className="text-voxel-sand font-pixel text-[9px] block">SIGNED URL TTL</span>
+              <span className="text-voxel-cloud">900 Seconds (15-Minute Expiration)</span>
             </div>
           </div>
         </CardContent>
-      </Card>
+      </VoxelCard>
 
-      {/* Revocation Confirmation Modal */}
-      <Modal
+      {/* Delete Confirmation Modal */}
+      <BlockModal
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
-        title="Revoke Voice Consent & Delete Profile"
-        description="Are you sure you wish to irrevocably revoke consent and purge your voice profile?"
+        title="PERMANENT BIOMETRIC PURGE"
+        description="Are you sure you want to permanently revoke consent and purge your voice profile from the database?"
+        biome="redstone"
       >
-        <div className="space-y-4 text-xs text-studio-300">
-          <p>
-            This action will execute a permanent delete request on your `voice_profiles` record and purge the `[1, 768]`
-            speaker embedding vector.
+        <div className="space-y-4">
+          <p className="text-xs font-sans text-voxel-stone-light leading-relaxed">
+            This will permanently erase your 768-dimensional speaker embedding from the Supabase database and purge any temporary audio references. A revocation audit event will be logged in compliance with the DPDP Act 2023.
           </p>
-          <p className="text-rose-400 font-medium">
-            Any future speech synthesis will fall back to standard synthetic voices until you complete a new consented
-            enrollment.
-          </p>
-          <div className="flex justify-end gap-3 pt-3 border-t border-studio-750">
-            <Button variant="ghost" size="sm" onClick={() => setIsDeleteModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" size="sm" onClick={handleConfirmRevocation}>
-              Confirm Deletion
-            </Button>
+          <div className="flex items-center justify-end gap-3 pt-3">
+            <BlockButton
+              variant="outline"
+              size="sm"
+              onClick={() => setIsDeleteModalOpen(false)}
+            >
+              CANCEL
+            </BlockButton>
+            <BlockButton
+              variant="destructive"
+              size="sm"
+              onClick={handleConfirmRevocation}
+            >
+              CONFIRM PURGE
+            </BlockButton>
           </div>
         </div>
-      </Modal>
+      </BlockModal>
     </div>
   )
 }
