@@ -44,3 +44,4 @@
 - [x] Safari (iOS & macOS)
 - [x] Firefox (Desktop)
 - [x] Responsive layout tested on 360px mobile viewport, tablet, and 1440px desktop.
+

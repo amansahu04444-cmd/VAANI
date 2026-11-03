@@ -12,6 +12,9 @@ const envSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional().default('mock-service-role-key'),
   SUPABASE_JWT_SECRET: z.string().default('vaani-test-jwt-secret-minimum-32-characters-long'),
   STORAGE_SIGNED_URL_EXPIRY_SECONDS: z.coerce.number().default(900), // 15 minutes
+  GNANI_API_KEY: z.string().optional(),
+  GNANI_API_BASE_URL: z.string().url().default('https://api.vachana.ai'),
+  GNANI_TTS_MODEL: z.string().default('timbre-v2.5'),
   GNANI_CUSTOM_VOICE_ENABLED: z.coerce.boolean().default(false),
 })
 

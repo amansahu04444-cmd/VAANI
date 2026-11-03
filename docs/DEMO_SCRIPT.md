@@ -113,3 +113,4 @@
 2. **Audio Setup:** Use an external microphone or headset with clear gain levels.
 3. **Pacing:** Strict adherence to the 60-second limit is essential for judging criteria. Keep transitions snappy.
 4. **Browser Zoom:** Set browser zoom to 100% or 110% on 1080p display for optimal UI clarity.
+
