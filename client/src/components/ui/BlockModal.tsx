@@ -92,3 +92,4 @@ export const BlockModal: React.FC<BlockModalProps> = ({
 }
 
 export const Modal = BlockModal
+

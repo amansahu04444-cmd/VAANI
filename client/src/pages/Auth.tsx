@@ -4,7 +4,7 @@ import { Lock, Mail, ArrowRight, Key } from 'lucide-react'
 import { BlockButton } from '../components/ui/BlockButton'
 import { VoxelCard, CardHeader, CardContent } from '../components/ui/VoxelCard'
 import { BlockInput } from '../components/ui/BlockInput'
-import { CubeIllustration } from '../components/ui/CubeIllustration'
+import { VoiceCore } from '../components/ui/VoiceCore'
 import { VoxelWaveform } from '../components/ui/VoxelWaveform'
 import { BlockBadge } from '../components/ui/BlockBadge'
 import { BlockNoticeBanner } from '../components/ui/BlockNoticeBanner'
@@ -78,7 +78,7 @@ export const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
           </div>
 
           <div className="text-center py-6 space-y-4">
-            <CubeIllustration biome="sound" size={80} floating className="mx-auto" />
+            <VoiceCore status="ready" isPlaying size={84} label="48kHz VECTOR CORE" className="mx-auto" />
             <h2 className="text-xl sm:text-2xl font-pixel uppercase tracking-wide text-voxel-cloud">
               {APP_NAME} VOICE CORE
             </h2>

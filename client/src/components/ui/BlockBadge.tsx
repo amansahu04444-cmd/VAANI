@@ -66,3 +66,4 @@ export const BlockBadge: React.FC<BlockBadgeProps> = ({
 }
 
 export const Badge = BlockBadge
+

@@ -150,3 +150,4 @@ All components are located in [`client/src/components/ui/`](file:///C:/Users/ama
 - **Server Build:** TypeScript `tsc` compiles with 0 errors.
 - **Automated Test Suite:** 7 test files, **37 tests passed (100%)** via Vitest.
 - **Responsive Layout:** Tested and scaled smoothly across 1440px desktop, 1280px laptop, 1024px tablet, 768px mobile, and 390px phone screens.
+

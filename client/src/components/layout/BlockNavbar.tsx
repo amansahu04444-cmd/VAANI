@@ -56,7 +56,7 @@ export const BlockNavbar: React.FC<NavbarProps> = ({
               <Link
                 key={link.path}
                 to={link.path}
-                className={`flex items-center gap-2 px-3 py-1.5 text-[10px] font-pixel uppercase tracking-wide transition-all border ${
+                className={`relative flex items-center gap-2 px-3 py-1.5 text-[10px] font-pixel uppercase tracking-wide transition-all border group overflow-hidden ${
                   isActive
                     ? 'bg-[#292D32] text-voxel-gold border-voxel-gold shadow-voxel-sm'
                     : 'bg-transparent text-voxel-stone-light border-transparent hover:text-voxel-cloud hover:bg-voxel-stone-dark/50'
@@ -64,6 +64,15 @@ export const BlockNavbar: React.FC<NavbarProps> = ({
               >
                 {link.icon}
                 <span>{link.name}</span>
+
+                {/* Pixel Underline Animation & Active Indicator */}
+                <div
+                  className={`absolute bottom-0 left-0 right-0 h-[2px] transition-all duration-150 ${
+                    isActive
+                      ? 'bg-voxel-gold shadow-[0_0_6px_#F5D547]'
+                      : 'bg-voxel-grass opacity-0 group-hover:opacity-100 group-hover:shadow-[0_0_6px_#67A94B]'
+                  }`}
+                />
               </Link>
             )
           })}
@@ -135,3 +144,4 @@ export const BlockNavbar: React.FC<NavbarProps> = ({
 }
 
 export const Navbar = BlockNavbar
+

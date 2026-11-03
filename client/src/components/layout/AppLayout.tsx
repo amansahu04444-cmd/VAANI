@@ -2,6 +2,7 @@ import React from 'react'
 import { Outlet } from 'react-router-dom'
 import { Navbar } from './Navbar'
 import { Footer } from './Footer'
+import { VoxelCursor } from '../ui/VoxelCursor'
 
 export interface AppLayoutProps {
   hasVoiceProfile?: boolean
@@ -14,6 +15,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
 }) => {
   return (
     <div className="min-h-screen flex flex-col bg-[#14171A] text-voxel-cloud selection:bg-voxel-grass selection:text-voxel-bedrock">
+      <VoxelCursor />
       <Navbar hasVoiceProfile={hasVoiceProfile} userEmail={userEmail} />
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Outlet />

@@ -5,28 +5,19 @@ import { BlockButton } from '../components/ui/BlockButton'
 import { VoxelCard, CardHeader, CardTitle, CardDescription } from '../components/ui/VoxelCard'
 import { BlockBadge } from '../components/ui/BlockBadge'
 import { VoxelAudioPlayer } from '../components/ui/VoxelAudioPlayer'
+import { VoxelSoundwaveSculpture } from '../components/ui/VoxelSoundwaveSculpture'
 import { CubeIllustration } from '../components/ui/CubeIllustration'
 import { PixelDivider } from '../components/ui/PixelDivider'
 import { SUPPORTED_LANGUAGES, DEMO_SCRIPTS } from '../lib/constants'
 
 export const Landing: React.FC = () => {
   const [activeDemoScript, setActiveDemoScript] = useState(DEMO_SCRIPTS[0])
+  const [isWaveActive, setIsWaveActive] = useState(false)
 
   return (
     <div className="space-y-24 py-4 select-none">
       {/* Voxel Hero Section */}
-      <section className="relative text-center max-w-4xl mx-auto space-y-7 pt-6">
-        {/* Floating Decorative Voxel Cubes */}
-        <div className="absolute -top-4 left-4 hidden lg:block">
-          <CubeIllustration biome="emerald" size={48} floating label="Voice Core" />
-        </div>
-        <div className="absolute top-12 right-2 hidden lg:block">
-          <CubeIllustration biome="gold" size={44} floating label="Indic v2.5" />
-        </div>
-        <div className="absolute bottom-6 left-10 hidden xl:block">
-          <CubeIllustration biome="sound" size={40} floating label="48kHz" />
-        </div>
-
+      <section className="relative text-center max-w-4xl mx-auto space-y-7 pt-4">
         {/* System Core Badge */}
         <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#171A1E] border-2 border-voxel-grass text-voxel-grass text-xs font-pixel shadow-voxel-sm">
           <Sparkles className="w-3.5 h-3.5 animate-pulse text-voxel-gold" />
@@ -45,6 +36,18 @@ export const Landing: React.FC = () => {
         <p className="text-sm sm:text-base text-voxel-stone-light max-w-2xl mx-auto leading-relaxed font-sans">
           Record a 10-second voice sample once. Prepare conversational scripts across Indian languages, synthesize speech with your authentic vocal timbre, and build a reusable private block library.
         </p>
+
+        {/* Interactive Voxel Soundwave Sculpture Centerpiece with Floating Indic Glyphs */}
+        <div 
+          onClick={() => setIsWaveActive((prev) => !prev)}
+          className="cursor-pointer group"
+          title="Click to toggle active audio wave simulation"
+        >
+          <VoxelSoundwaveSculpture isPlaying={isWaveActive} />
+          <div className="text-[10px] font-mono text-voxel-stone-light/70 group-hover:text-voxel-gold transition-colors mt-1">
+            [{isWaveActive ? 'ACTIVE AUDIO FREQUENCY STREAM' : 'CLICK SCULPTURE TO ACTIVATE ACOUSTIC WAVE'}]
+          </div>
+        </div>
 
         {/* 3D Block Action Buttons */}
         <div className="flex flex-wrap items-center justify-center gap-4 pt-2">

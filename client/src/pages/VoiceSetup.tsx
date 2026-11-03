@@ -7,6 +7,7 @@ import { BlockNoticeBanner } from '../components/ui/BlockNoticeBanner'
 import { VoxelWaveform } from '../components/ui/VoxelWaveform'
 import { BlockModal } from '../components/ui/BlockModal'
 import { CubeIllustration } from '../components/ui/CubeIllustration'
+import { VoiceCore } from '../components/ui/VoiceCore'
 import { BlockProgress } from '../components/ui/BlockProgress'
 import { PixelDivider } from '../components/ui/PixelDivider'
 import { VOICE_CONSENT_STATEMENT } from '../lib/constants'
@@ -181,7 +182,12 @@ export const VoiceSetup: React.FC<VoiceSetupProps> = ({
           </p>
         </div>
 
-        <CubeIllustration biome={status === 'ready' ? 'emerald' : 'sound'} size={44} floating />
+        <VoiceCore
+          status={isRecording ? 'recording' : isProcessing ? 'processing' : status === 'ready' ? 'ready' : 'not_enrolled'}
+          isGenerating={isProcessing}
+          size={52}
+          label={isRecording ? 'RECORDING' : isProcessing ? 'EXTRACTING' : status === 'ready' ? 'PROFILE ACTIVE' : 'NO PROFILE'}
+        />
       </div>
 
       {apiNotice && (

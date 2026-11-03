@@ -58,3 +58,4 @@ export const BlockProgress: React.FC<BlockProgressProps> = ({
     </div>
   )
 }
+

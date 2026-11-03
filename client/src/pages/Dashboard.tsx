@@ -7,6 +7,7 @@ import { BlockBadge } from '../components/ui/BlockBadge'
 import { BlockNoticeBanner } from '../components/ui/BlockNoticeBanner'
 import { VoxelAudioPlayer } from '../components/ui/VoxelAudioPlayer'
 import { CubeIllustration } from '../components/ui/CubeIllustration'
+import { VoiceCore } from '../components/ui/VoiceCore'
 import { PixelDivider } from '../components/ui/PixelDivider'
 import type { AudioAsset } from '../types'
 import { formatDate } from '../lib/utils'
@@ -121,7 +122,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <Mic2 className="w-4 h-4 text-voxel-grass" />
           </div>
           <div className="flex items-center gap-3">
-            <CubeIllustration biome={hasVoiceProfile ? 'grass' : 'gold'} size={32} />
+            <VoiceCore status={hasVoiceProfile ? 'ready' : 'not_enrolled'} size={34} />
             <div>
               <h4 className="text-sm font-pixel text-voxel-cloud">
                 {hasVoiceProfile ? 'AMAN SHARMA' : 'NO PROFILE'}

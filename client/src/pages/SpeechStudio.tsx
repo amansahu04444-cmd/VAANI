@@ -9,6 +9,7 @@ import { BlockSelect } from '../components/ui/BlockSelect'
 import { BlockNoticeBanner } from '../components/ui/BlockNoticeBanner'
 import { VoxelAudioPlayer } from '../components/ui/VoxelAudioPlayer'
 import { CubeIllustration } from '../components/ui/CubeIllustration'
+import { VoiceCore } from '../components/ui/VoiceCore'
 import { BlockProgress } from '../components/ui/BlockProgress'
 import { SUPPORTED_LANGUAGES, STANDARD_VOICES, DEMO_SCRIPTS } from '../lib/constants'
 import type { VoiceMode, AudioAsset } from '../types'
@@ -140,7 +141,13 @@ export const SpeechStudio: React.FC<SpeechStudioProps> = ({
           </p>
         </div>
 
-        <CubeIllustration biome="gold" size={44} floating />
+        <VoiceCore
+          isGenerating={isGenerating}
+          isPlaying={Boolean(generatedAudio)}
+          hasSucceeded={Boolean(generatedAudio && !isGenerating)}
+          size={52}
+          label={isGenerating ? 'SYNTHESIZING' : generatedAudio ? 'AUDIO READY' : 'TIMBRE READY'}
+        />
       </div>
 
       {errorNotice && (

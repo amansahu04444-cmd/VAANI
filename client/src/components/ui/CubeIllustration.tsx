@@ -184,3 +184,4 @@ export const CubeIllustration: React.FC<CubeIllustrationProps> = ({
     </div>
   )
 }
+
