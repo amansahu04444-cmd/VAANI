@@ -187,7 +187,7 @@ export const BlockNavbar: React.FC<NavbarProps> = ({
 
             {/* Audio Settings Dropdown Popover */}
             {showSoundMenu && (
-              <div className="absolute right-0 top-full mt-2 w-72 bg-[#16191E] border-2 border-voxel-stone-dark p-3.5 shadow-voxel-xl z-50 space-y-3 font-mono">
+              <div className="absolute right-0 top-full mt-2 w-72 max-w-[calc(100vw-24px)] bg-[#16191E] border-2 border-voxel-stone-dark p-3.5 shadow-voxel-xl z-50 space-y-3 font-mono">
                 <div className="flex items-center justify-between pb-2 border-b border-voxel-stone-dark/80 text-[10px] font-pixel text-voxel-cloud">
                   <span>AUDIO ENGINE MATRIX</span>
                   <span className="text-voxel-grass">48k PCM</span>

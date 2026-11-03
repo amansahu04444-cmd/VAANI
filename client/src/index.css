@@ -112,3 +112,43 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #67A94B;
 }
+
+/* Ambient Acoustic Environment Animations */
+@keyframes floatAcoustic {
+  0%, 100% {
+    transform: translate3d(0, 0, 0);
+    opacity: 0.25;
+  }
+  50% {
+    transform: translate3d(4px, -18px, 0);
+    opacity: 0.65;
+  }
+}
+
+@keyframes heroFadeUp {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.animate-hero-fade {
+  animation: heroFadeUp 0.65s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-float-acoustic {
+  animation: floatAcoustic 8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-hero-fade,
+  .animate-float-acoustic {
+    animation: none !important;
+    transform: none !important;
+    opacity: 1 !important;
+  }
+}

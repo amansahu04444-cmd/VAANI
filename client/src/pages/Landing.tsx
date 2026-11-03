@@ -5,7 +5,7 @@ import { BlockButton } from '../components/ui/BlockButton'
 import { VoxelCard, CardHeader, CardTitle, CardDescription } from '../components/ui/VoxelCard'
 import { BlockBadge } from '../components/ui/BlockBadge'
 import { VoxelAudioPlayer } from '../components/ui/VoxelAudioPlayer'
-import { CinematicAudioHero } from '../components/ui/CinematicAudioHero'
+import { AmbientSoundEnvironment } from '../components/ui/AmbientSoundEnvironment'
 import { CubeIllustration } from '../components/ui/CubeIllustration'
 import { PixelDivider } from '../components/ui/PixelDivider'
 import { SUPPORTED_LANGUAGES, DEMO_SCRIPTS } from '../lib/constants'
@@ -14,58 +14,61 @@ export const Landing: React.FC = () => {
   const [activeDemoScript, setActiveDemoScript] = useState(DEMO_SCRIPTS[0])
 
   return (
-    <div className="space-y-24 py-4 select-none">
-      {/* Cinematic Audio Studio Hero Section */}
-      <section className="relative text-center max-w-4xl mx-auto space-y-8 pt-4">
-        {/* System Core Badge */}
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#171A1E] border-2 border-voxel-grass text-voxel-grass text-xs font-pixel shadow-voxel-sm">
-          <Sparkles className="w-3.5 h-3.5 animate-pulse text-voxel-gold" />
-          <span>POWERED BY GNANI AI TIMBRE & VACHANA SPEECH ARCHITECTURE</span>
-        </div>
+    <div className="space-y-24 py-2 select-none">
+      {/* Full-Screen Immersive Ambient Audio Hero Section */}
+      <section className="relative -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 pt-10 sm:pt-14 pb-16 sm:pb-20 overflow-hidden">
+        {/* Full-Width Continuous Soundwave Environment Background */}
+        <AmbientSoundEnvironment />
 
-        {/* Pixel Headline */}
-        <h1 className="text-3xl sm:text-5xl lg:text-6xl font-pixel uppercase tracking-wide text-voxel-cloud leading-tight">
-          YOUR VOICE. YOUR WORDS.{' '}
-          <span className="text-voxel-grass drop-shadow-[2px_2px_0px_#1D4427]">
-            EVERY LANGUAGE.
-          </span>
-        </h1>
-
-        {/* Readable Subtitle */}
-        <p className="text-sm sm:text-base text-voxel-stone-light max-w-2xl mx-auto leading-relaxed font-sans">
-          Record a 10-second voice sample once. Prepare conversational scripts across Indian languages, synthesize speech with your authentic vocal timbre, and build a reusable private block library.
-        </p>
-
-        {/* Large Cinematic Audio Visualization Centerpiece */}
-        <CinematicAudioHero />
-
-        {/* 3D Block Action Buttons */}
-        <div className="flex flex-wrap items-center justify-center gap-4 pt-1">
-          <Link to="/studio">
-            <BlockButton size="lg" variant="primary" rightIcon={<ArrowRight className="w-4 h-4" />}>
-              OPEN SPEECH STUDIO
-            </BlockButton>
-          </Link>
-          <Link to="/voice-setup">
-            <BlockButton variant="gold" size="lg" leftIcon={<Mic2 className="w-4 h-4" />}>
-              ENROLL VOICE PROFILE
-            </BlockButton>
-          </Link>
-        </div>
-
-        {/* Block World Trust Strip */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-6 max-w-3xl mx-auto text-xs font-mono text-voxel-sand">
-          <div className="flex items-center justify-center gap-2 bg-[#171A1E] p-2.5 border-2 border-voxel-stone-dark shadow-voxel-sm">
-            <CheckCircle2 className="w-4 h-4 text-voxel-grass shrink-0" />
-            <span>DPDP Biometric Consent</span>
+        {/* Hero Foreground Content */}
+        <div className="relative z-10 text-center max-w-4xl mx-auto space-y-8">
+          {/* 1. System Core Badge */}
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-[#171A1E]/90 backdrop-blur-sm border-2 border-voxel-grass text-voxel-grass text-xs font-pixel shadow-voxel-sm animate-hero-fade">
+            <Sparkles className="w-3.5 h-3.5 animate-pulse text-voxel-gold" />
+            <span>POWERED BY GNANI AI TIMBRE & VACHANA SPEECH ARCHITECTURE</span>
           </div>
-          <div className="flex items-center justify-center gap-2 bg-[#171A1E] p-2.5 border-2 border-voxel-stone-dark shadow-voxel-sm">
-            <CheckCircle2 className="w-4 h-4 text-voxel-gold shrink-0" />
-            <span>11 Indic Biomes & Hinglish</span>
+
+          {/* 2. Pixel Headline */}
+          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-pixel uppercase tracking-wide text-voxel-cloud leading-tight animate-hero-fade [animation-delay:120ms]">
+            YOUR VOICE. YOUR WORDS.{' '}
+            <span className="text-voxel-grass drop-shadow-[2px_2px_0px_#1D4427]">
+              EVERY LANGUAGE.
+            </span>
+          </h1>
+
+          {/* 3. Readable Subtitle with enhanced contrast */}
+          <p className="text-sm sm:text-base text-voxel-stone-light max-w-2xl mx-auto leading-relaxed font-sans animate-hero-fade [animation-delay:220ms]">
+            Record a 10-second voice sample once. Prepare conversational scripts across Indian languages, synthesize speech with your authentic vocal timbre, and build a reusable private block library.
+          </p>
+
+          {/* 4. 3D Block Action Buttons */}
+          <div className="flex flex-wrap items-center justify-center gap-4 pt-2 animate-hero-fade [animation-delay:320ms]">
+            <Link to="/studio">
+              <BlockButton size="lg" variant="primary" rightIcon={<ArrowRight className="w-4 h-4" />}>
+                OPEN SPEECH STUDIO
+              </BlockButton>
+            </Link>
+            <Link to="/voice-setup">
+              <BlockButton variant="gold" size="lg" leftIcon={<Mic2 className="w-4 h-4" />}>
+                ENROLL VOICE PROFILE
+              </BlockButton>
+            </Link>
           </div>
-          <div className="flex items-center justify-center gap-2 bg-[#171A1E] p-2.5 border-2 border-voxel-stone-dark shadow-voxel-sm">
-            <CheckCircle2 className="w-4 h-4 text-voxel-sky shrink-0" />
-            <span>Private Storage & Signed URLs</span>
+
+          {/* 5. Block World Trust Strip */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-6 max-w-3xl mx-auto text-xs font-mono text-voxel-sand animate-hero-fade [animation-delay:420ms]">
+            <div className="flex items-center justify-center gap-2 bg-[#171A1E]/85 backdrop-blur-sm p-2.5 border-2 border-voxel-stone-dark shadow-voxel-sm">
+              <CheckCircle2 className="w-4 h-4 text-voxel-grass shrink-0" />
+              <span>DPDP Biometric Consent</span>
+            </div>
+            <div className="flex items-center justify-center gap-2 bg-[#171A1E]/85 backdrop-blur-sm p-2.5 border-2 border-voxel-stone-dark shadow-voxel-sm">
+              <CheckCircle2 className="w-4 h-4 text-voxel-gold shrink-0" />
+              <span>11 Indic Biomes & Hinglish</span>
+            </div>
+            <div className="flex items-center justify-center gap-2 bg-[#171A1E]/85 backdrop-blur-sm p-2.5 border-2 border-voxel-stone-dark shadow-voxel-sm">
+              <CheckCircle2 className="w-4 h-4 text-voxel-sky shrink-0" />
+              <span>Private Storage & Signed URLs</span>
+            </div>
           </div>
         </div>
       </section>
