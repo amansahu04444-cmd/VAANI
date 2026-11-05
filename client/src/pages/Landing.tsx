@@ -5,7 +5,7 @@ import { BlockButton } from '../components/ui/BlockButton'
 import { VoxelCard, CardHeader, CardTitle, CardDescription } from '../components/ui/VoxelCard'
 import { BlockBadge } from '../components/ui/BlockBadge'
 import { VoxelAudioPlayer } from '../components/ui/VoxelAudioPlayer'
-import { AmbientSoundEnvironment } from '../components/ui/AmbientSoundEnvironment'
+import { ImmersiveHeroBackground } from '../components/effects/ImmersiveHeroBackground'
 import { CubeIllustration } from '../components/ui/CubeIllustration'
 import { PixelDivider } from '../components/ui/PixelDivider'
 import { SUPPORTED_LANGUAGES, DEMO_SCRIPTS } from '../lib/constants'
@@ -17,19 +17,19 @@ export const Landing: React.FC = () => {
     <div className="w-full select-none">
       {/* Full-Screen Immersive Ambient Audio Hero Section - Begins Immediately Below Navbar */}
       <section className="relative w-full pt-8 sm:pt-12 pb-14 sm:pb-18 px-4 sm:px-6 lg:px-8 overflow-hidden border-b-2 border-voxel-stone-dark/40">
-        {/* Full-Width Continuous Soundwave Environment Background (Lowest Layer: z-0) */}
-        <AmbientSoundEnvironment />
+        {/* Layer 1-4: Full-Screen Ambient Lighting, Audio Halo, and 3-Layer Particle Field */}
+        <ImmersiveHeroBackground />
 
         {/* Hero Foreground Content (Foreground Layer: z-10) */}
         <div className="relative z-10 text-center max-w-4xl mx-auto space-y-7 sm:space-y-8">
           {/* 1. System Core Badge */}
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-[#171A1E]/90 backdrop-blur-sm border-2 border-voxel-grass text-voxel-grass text-xs font-pixel shadow-voxel-sm animate-hero-fade">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-[#171A1E]/90 backdrop-blur-sm border-2 border-voxel-grass text-voxel-grass text-xs font-pixel shadow-voxel-sm animate-hero-fade [animation-delay:500ms]">
             <Sparkles className="w-3.5 h-3.5 animate-pulse text-voxel-gold" />
             <span>POWERED BY GNANI AI TIMBRE & VACHANA SPEECH ARCHITECTURE</span>
           </div>
 
           {/* 2. Pixel Headline */}
-          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-pixel uppercase tracking-wide text-voxel-cloud leading-tight animate-hero-fade [animation-delay:120ms] drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-pixel uppercase tracking-wide text-voxel-cloud leading-tight animate-hero-fade [animation-delay:700ms] drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
             YOUR VOICE. YOUR WORDS.{' '}
             <span className="text-voxel-grass drop-shadow-[2px_2px_0px_#1D4427]">
               EVERY LANGUAGE.
@@ -37,12 +37,12 @@ export const Landing: React.FC = () => {
           </h1>
 
           {/* 3. Readable Subtitle with enhanced contrast */}
-          <p className="text-sm sm:text-base text-[#D4D8DC] sm:text-voxel-stone-light max-w-2xl mx-auto leading-relaxed font-sans animate-hero-fade [animation-delay:220ms] drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+          <p className="text-sm sm:text-base text-[#D4D8DC] sm:text-voxel-stone-light max-w-2xl mx-auto leading-relaxed font-sans animate-hero-fade [animation-delay:900ms] drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
             Record a 10-second voice sample once. Prepare conversational scripts across Indian languages, synthesize speech with your authentic vocal timbre, and build a reusable private block library.
           </p>
 
           {/* 4. 3D Block Action Buttons (Top Interactive Layer: z-20) */}
-          <div className="relative z-20 flex flex-wrap items-center justify-center gap-4 pt-2 animate-hero-fade [animation-delay:320ms]">
+          <div className="relative z-20 flex flex-wrap items-center justify-center gap-4 pt-2 animate-hero-fade [animation-delay:1000ms]">
             <Link to="/studio">
               <BlockButton size="lg" variant="primary" rightIcon={<ArrowRight className="w-4 h-4" />}>
                 OPEN SPEECH STUDIO
@@ -56,7 +56,7 @@ export const Landing: React.FC = () => {
           </div>
 
           {/* 5. Block World Trust Strip */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-6 max-w-3xl mx-auto text-xs font-mono text-voxel-sand animate-hero-fade [animation-delay:420ms]">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-6 max-w-3xl mx-auto text-xs font-mono text-voxel-sand animate-hero-fade [animation-delay:1200ms]">
             <div className="flex items-center justify-center gap-2 bg-[#171A1E]/85 backdrop-blur-sm p-2.5 border-2 border-voxel-stone-dark shadow-voxel-sm">
               <CheckCircle2 className="w-4 h-4 text-voxel-grass shrink-0" />
               <span>DPDP Biometric Consent</span>

@@ -1,11 +1,11 @@
 import React from 'react'
-import { AmbientSoundEnvironment, type AmbientSoundEnvironmentProps } from './AmbientSoundEnvironment'
+import { ImmersiveHeroBackground, type ImmersiveHeroBackgroundProps } from '../effects/ImmersiveHeroBackground'
 
 /**
- * Legacy alias for AmbientSoundEnvironment
+ * Legacy alias for ImmersiveHeroBackground
  */
-export const CinematicAudioHero: React.FC<AmbientSoundEnvironmentProps> = (props) => {
-  return <AmbientSoundEnvironment {...props} />
+export const CinematicAudioHero: React.FC<ImmersiveHeroBackgroundProps> = (props) => {
+  return <ImmersiveHeroBackground {...props} />
 }
 
 export default CinematicAudioHero
