@@ -32,6 +32,10 @@ export const ImmersiveHeroBackground: React.FC<ImmersiveHeroBackgroundProps> = (
   const currScaleRef = useRef(1.0)
   const haloPhaseRef = useRef(0)
 
+  // Scroll-reactive state (managed in refs for zero React re-renders)
+  const targetScrollYRef = useRef(0)
+  const currScrollYRef = useRef(0)
+
   const isLiveRef = useRef(isAmbientPlaying || isGenerating)
   const smoothBassRef = useRef(0)
   const smoothMidRef = useRef(0)
@@ -99,15 +103,48 @@ export const ImmersiveHeroBackground: React.FC<ImmersiveHeroBackgroundProps> = (
       heroEl.addEventListener('pointerenter', handlePointerEnter as EventListener, { passive: true })
     }
 
-    // 4. ResizeObserver for Adaptive Particle Density
+    // 4. Passive Scroll Listener for Scroll-Linked Halo 3D Motion
+    const handleScroll = () => {
+      targetScrollYRef.current = window.scrollY || window.pageYOffset || 0
+    }
+    window.addEventListener('scroll', handleScroll, { passive: true })
+
+    // 5. ResizeObserver for Adaptive Particle Density
     const resizeObserver = new ResizeObserver(() => {
       engine.resize(heroEl)
     })
     resizeObserver.observe(heroEl)
 
-    // 5. Coordinated 60 FPS Render Loop (Single Loop for Particles + Audio Halo)
+    // 6. Coordinated 60 FPS Render Loop (Single Loop for Particles + Audio Halo)
     const renderLoop = () => {
       const isLive = isLiveRef.current
+      const isReduced = motionQuery.matches
+
+      // Damped scroll interpolation (settles smoothly when scrolling stops)
+      currScrollYRef.current += (targetScrollYRef.current - currScrollYRef.current) * 0.09
+
+      const heroRect = heroEl.getBoundingClientRect()
+      const heroHeight = heroEl.offsetHeight || 550
+      const isMobile = heroRect.width < 768
+      const isTablet = heroRect.width >= 768 && heroRect.width < 1024
+
+      // Max scroll effect across the first 500px of page scroll
+      const rawScrollProgress = Math.max(0, currScrollYRef.current / (heroHeight * 0.8))
+      const scrollProgress = isReduced ? 0 : Math.min(1.0, rawScrollProgress)
+
+      // Responsive scroll-reactive values:
+      // Desktop: max rotation 24°, max translateY -38px, max tiltX -6°, scale reduction 0.12 (1.0 -> 0.88)
+      // Tablet: max rotation 14°, max translateY -22px, max tiltX -3°, scale reduction 0.08 (1.0 -> 0.92)
+      // Mobile: max rotation 6°, max translateY -10px, max tiltX 0°, scale reduction 0.05 (1.0 -> 0.95)
+      const maxRotation = isMobile ? 6 : isTablet ? 14 : 24
+      const maxTranslateY = isMobile ? -10 : isTablet ? -22 : -38
+      const maxTiltX = isMobile ? 0 : isTablet ? -3 : -6
+      const maxScaleReduction = isMobile ? 0.05 : isTablet ? 0.08 : 0.12
+
+      const scrollRotation = scrollProgress * maxRotation
+      const scrollTranslateY = scrollProgress * maxTranslateY
+      const scrollTiltX = scrollProgress * maxTiltX
+      const scrollScale = 1.0 - scrollProgress * maxScaleReduction
 
       // A. Fetch real FFT frequency spectrum
       let targetBass = 0
@@ -149,7 +186,7 @@ export const ImmersiveHeroBackground: React.FC<ImmersiveHeroBackgroundProps> = (
       engine.update()
       engine.draw()
 
-      // C. Update Audio Halo (3D Perspective Tilt & Pulse)
+      // C. Update Audio Halo (3D Perspective Tilt, Scroll Response & Audio Pulse)
       if (haloRef.current) {
         currTiltXRef.current += (targetTiltXRef.current - currTiltXRef.current) * 0.1
         currTiltYRef.current += (targetTiltYRef.current - currTiltYRef.current) * 0.1
@@ -159,17 +196,19 @@ export const ImmersiveHeroBackground: React.FC<ImmersiveHeroBackgroundProps> = (
         const targetScale = 1.0 + bass * 0.06 + breathing
         currScaleRef.current += (targetScale - currScaleRef.current) * 0.1
 
-        const tiltX = currTiltXRef.current.toFixed(2)
-        const tiltY = currTiltYRef.current.toFixed(2)
-        const scale = currScaleRef.current.toFixed(3)
+        const totalTiltX = (currTiltXRef.current + scrollTiltX).toFixed(2)
+        const totalTiltY = currTiltYRef.current.toFixed(2)
+        const totalRotation = scrollRotation.toFixed(2)
+        const totalTranslateY = scrollTranslateY.toFixed(1)
+        const totalScale = (scrollScale * currScaleRef.current).toFixed(3)
 
-        haloRef.current.style.transform = `perspective(800px) rotateX(${tiltX}deg) rotateY(${tiltY}deg) scale(${scale})`
+        haloRef.current.style.transform = `perspective(800px) translate3d(0, ${totalTranslateY}px, 0) rotateX(${totalTiltX}deg) rotateY(${totalTiltY}deg) rotateZ(${totalRotation}deg) scale(${totalScale})`
       }
 
       animFrameRef.current = requestAnimationFrame(renderLoop)
     }
 
-    // 6. Tab Visibility Auto-Pause
+    // 7. Tab Visibility Auto-Pause
     const handleVisibilityChange = () => {
       if (document.hidden) {
         if (animFrameRef.current) {
@@ -190,6 +229,7 @@ export const ImmersiveHeroBackground: React.FC<ImmersiveHeroBackgroundProps> = (
     return () => {
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('scroll', handleScroll)
 
       if (!isTouch) {
         heroEl.removeEventListener('pointermove', handlePointerMove as EventListener)
@@ -220,3 +260,4 @@ export const ImmersiveHeroBackground: React.FC<ImmersiveHeroBackgroundProps> = (
     </div>
   )
 }
+

@@ -16,3 +16,4 @@ export const CinematicParticleField = forwardRef<HTMLCanvasElement, CinematicPar
 )
 
 CinematicParticleField.displayName = 'CinematicParticleField'
+

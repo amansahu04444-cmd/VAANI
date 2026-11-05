@@ -15,9 +15,9 @@ export const Landing: React.FC = () => {
 
   return (
     <div className="w-full select-none">
-      {/* Full-Screen Immersive Ambient Audio Hero Section - Begins Immediately Below Navbar */}
-      <section className="relative w-full pt-8 sm:pt-12 pb-14 sm:pb-18 px-4 sm:px-6 lg:px-8 overflow-hidden border-b-2 border-voxel-stone-dark/40">
-        {/* Layer 1-4: Full-Screen Ambient Lighting, Audio Halo, and 3-Layer Particle Field */}
+      {/* Full-Screen Immersive Ambient Audio Hero Section - Seamless Cinematic Transition */}
+      <section className="relative w-full pt-8 sm:pt-12 pb-16 sm:pb-24 px-4 sm:px-6 lg:px-8 overflow-hidden">
+        {/* Layer 1-4: Full-Screen Ambient Lighting, Scroll-Reactive Audio Halo, and 3-Layer Particle Field */}
         <ImmersiveHeroBackground />
 
         {/* Hero Foreground Content (Foreground Layer: z-10) */}
@@ -73,12 +73,19 @@ export const Landing: React.FC = () => {
         </div>
       </section>
 
-      {/* Subsequent Landing Page Sections (Constrained Container: max-w-7xl) */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-24 pt-14 pb-20">
-        <PixelDivider color="grass" />
+      {/* Subsequent Landing Page Sections (Seamlessly Blended Container: max-w-7xl) */}
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-24 pt-8 pb-20">
+        {/* Subtle Ambient Spillover Glow from Hero into Jukebox */}
+        <div
+          className="absolute -top-12 inset-x-0 h-24 pointer-events-none"
+          style={{
+            background:
+              'radial-gradient(ellipse 60% 40% at 50% 0%, rgba(103, 169, 75, 0.08) 0%, transparent 70%)',
+          }}
+        />
 
-      {/* Interactive Voxel Jukebox Demo */}
-      <section className="max-w-4xl mx-auto space-y-6">
+        {/* Interactive Voxel Jukebox Demo */}
+        <section className="max-w-4xl mx-auto space-y-6">
         <div className="text-center space-y-2">
           <BlockBadge variant="gold">INTERACTIVE JUKEBOX</BlockBadge>
           <h2 className="text-xl sm:text-2xl font-pixel uppercase text-voxel-cloud">

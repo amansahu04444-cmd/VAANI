@@ -45,14 +45,15 @@ export const AmbientLighting: React.FC<AmbientLightingProps> = ({
         }}
       />
 
-      {/* 4. Atmospheric Horizon Fade - Seamlessly melts into page body */}
+      {/* 4. Atmospheric Horizon Fade - Seamlessly melts into page body (#14171A) */}
       <div
-        className="absolute inset-x-0 bottom-0 h-36 pointer-events-none"
+        className="absolute inset-x-0 bottom-0 h-56 sm:h-72 pointer-events-none z-[1]"
         style={{
           background:
-            'linear-gradient(to bottom, transparent 0%, rgba(18, 21, 24, 0.7) 65%, #14171A 100%)',
+            'linear-gradient(to bottom, transparent 0%, rgba(11, 13, 16, 0.2) 20%, rgba(16, 19, 23, 0.6) 50%, rgba(20, 23, 26, 0.9) 78%, #14171A 100%)',
         }}
       />
     </div>
   )
 }
+

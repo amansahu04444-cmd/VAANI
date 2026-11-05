@@ -127,3 +127,4 @@ export const AudioHalo = forwardRef<HTMLDivElement, AudioHaloProps>(({ className
 })
 
 AudioHalo.displayName = 'AudioHalo'
+

@@ -249,7 +249,18 @@ export class ParticleEngine {
       const drawX = p.x + p.dispX
       const drawY = p.y + p.dispY
 
-      this.ctx.globalAlpha = p.alpha
+      // Seamless vertical fade-out in bottom 160px:
+      // Prevents particles from abruptly vanishing at the bottom boundary of the hero canvas
+      let finalAlpha = p.alpha
+      const distFromBottom = this.height - drawY
+      if (distFromBottom < 160) {
+        const fadeFactor = Math.max(0, distFromBottom / 160)
+        finalAlpha *= fadeFactor
+      }
+
+      if (finalAlpha <= 0.005) continue
+
+      this.ctx.globalAlpha = finalAlpha
       this.ctx.fillStyle = p.color
 
       if (p.isVoxel) {
@@ -273,3 +284,4 @@ export class ParticleEngine {
     this.ctx = null
   }
 }
+
