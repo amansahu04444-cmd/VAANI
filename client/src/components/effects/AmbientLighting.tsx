@@ -27,7 +27,7 @@ export const AmbientLighting: React.FC<AmbientLightingProps> = ({
 
       {/* 2. Left-Flank Deep Forest Ambient Light Source */}
       <div
-        className="absolute inset-0 pointer-events-none"
+        className="absolute inset-0 pointer-events-none animate-ambient-drift"
         style={{
           background:
             'radial-gradient(ellipse 55% 45% at 18% 68%, rgba(40, 92, 53, 0.15) 0%, rgba(20, 50, 28, 0.05) 50%, transparent 70%)',
@@ -37,10 +37,10 @@ export const AmbientLighting: React.FC<AmbientLightingProps> = ({
 
       {/* 3. Right-Flank Warm Gold Accent Highlight */}
       <div
-        className="absolute inset-0 pointer-events-none"
+        className="absolute inset-0 pointer-events-none animate-[ambientDriftSlow_22s_ease-in-out_infinite_reverse]"
         style={{
           background:
-            'radial-gradient(ellipse 45% 35% at 82% 42%, rgba(245, 213, 71, 0.07) 0%, rgba(209, 176, 43, 0.02) 45%, transparent 65%)',
+            'radial-gradient(ellipse 45% 35% at 82% 42%, rgba(245, 213, 71, 0.08) 0%, rgba(209, 176, 43, 0.02) 45%, transparent 65%)',
           opacity: 0.8 * intensityMultiplier,
         }}
       />
