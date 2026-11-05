@@ -59,8 +59,8 @@ export const authApi = {
     return apiRequest<{ user: { id: string; email: string; display_name: string; full_name?: string } }>('/auth/me')
   },
 
-  async registerProfile(payload: { userId: string; email: string; fullName: string }) {
-    return apiRequest<{ ok: boolean; message: string; user: any }>('/auth/register-profile', {
+  async signupViaStudio(payload: { email: string; password: string; fullName: string }) {
+    return apiRequest<{ ok: boolean; message: string; user: { id: string; email: string } }>('/auth/signup', {
       method: 'POST',
       body: JSON.stringify(payload),
     })

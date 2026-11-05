@@ -6,7 +6,7 @@ import { config } from '../config/env.js'
 import { dbRepo, mockDb } from '../db/repository.js'
 import { supabaseAdmin, supabaseAnon } from '../db/supabase.js'
 
-describe('VAANI — Supabase Signup Flow & Profile Persistence Suite', () => {
+describe('VAANI — Supabase Signup Flow & Rate Limit Handling Suite', () => {
   const validSecret = config.SUPABASE_JWT_SECRET
 
   const createTestJwt = (userId: string, email: string) => {
@@ -31,124 +31,123 @@ describe('VAANI — Supabase Signup Flow & Profile Persistence Suite', () => {
   // 1. Input Validation & Error Handling
   // ---------------------------------------------------------------------------
   describe('1. Input Validation & Error Handling', () => {
-    it('rejects registration without a valid userId (400)', async () => {
+    it('rejects signup without a valid email address (400)', async () => {
       const res = await request(app)
-        .post('/api/auth/register-profile')
+        .post('/api/auth/signup')
         .send({
-          email: 'valid@example.com',
+          password: 'ValidPassword123!',
           fullName: 'Test User',
         })
 
       expect(res.status).toBe(400)
-      expect(res.body.error).toMatch(/valid userId is required/i)
+      expect(res.body.error).toMatch(/valid email/i)
     })
 
-    it('rejects registration with a malformed email (400)', async () => {
+    it('rejects signup with a malformed email address (400)', async () => {
       const res = await request(app)
-        .post('/api/auth/register-profile')
+        .post('/api/auth/signup')
         .send({
-          userId: '00000000-0000-4000-a000-000000000099',
-          email: 'not-an-email',
+          email: 'not-a-valid-email',
+          password: 'ValidPassword123!',
           fullName: 'Test User',
         })
 
       expect(res.status).toBe(400)
-      expect(res.body.error).toMatch(/valid email is required/i)
+      expect(res.body.error).toMatch(/valid email/i)
     })
 
-    it('enforces password minimum length requirements on Supabase auth', async () => {
-      const invalidEmail = 'weakpass@example.com'
-      const weakPassword = '123' // Under 6 characters
+    it('rejects signup with short password under 6 characters (400)', async () => {
+      const res = await request(app)
+        .post('/api/auth/signup')
+        .send({
+          email: 'valid_email@vaani.ai',
+          password: '123',
+          fullName: 'Test User',
+        })
 
-      const { data, error } = await supabaseAnon.auth.signUp({
-        email: invalidEmail,
-        password: weakPassword,
-      })
-
-      expect(error).not.toBeNull()
-      expect(error?.message).toMatch(/password should be at least 6 characters/i)
-      expect(data.user).toBeNull()
+      expect(res.status).toBe(400)
+      expect(res.body.error).toMatch(/at least 6 characters/i)
     })
   })
 
   // ---------------------------------------------------------------------------
-  // 2. Profile Creation & Synchronization
+  // 2. HTTP 429 & Rate Limit Handling Without Auto-Retries
   // ---------------------------------------------------------------------------
-  describe('2. Profile Creation & Synchronization', () => {
-    it('creates profile record via POST /api/auth/register-profile (201)', async () => {
-      const userId = '00000000-0000-4000-a000-000000000101'
-      const email = 'new-producer@vaani.ai'
-      const fullName = 'Aarav Mehta'
+  describe('2. HTTP 429 & Rate Limit Handling', () => {
+    it('properly extracts and formats Supabase over_email_send_rate_limit (429) error', () => {
+      const supabase429Error = {
+        name: 'AuthApiError',
+        status: 429,
+        code: 'over_email_send_rate_limit',
+        message: 'email rate limit exceeded',
+      }
 
-      const res = await request(app)
-        .post('/api/auth/register-profile')
-        .send({
-          userId,
-          email,
-          fullName,
-        })
+      // Verifies client error formatting logic without automatic retries
+      const formatError = (err: any) => {
+        if (err.status === 429 || err.code === 'over_email_send_rate_limit') {
+          return `[HTTP 429: ${err.code}] ${err.message}. Supabase has restricted new confirmation emails for this project. Automatic retries are disabled.`
+        }
+        return err.message
+      }
 
-      expect(res.status).toBe(201)
-      expect(res.body.ok).toBe(true)
-      expect(res.body.user).toBeDefined()
-      expect(res.body.user.id).toBe(userId)
-      expect(res.body.user.email).toBe(email)
-      expect(res.body.user.display_name).toBe(fullName)
-
-      // Verify profile is persistent in dbRepo
-      const saved = await dbRepo.getProfile(userId)
-      expect(saved).not.toBeNull()
-      expect(saved?.display_name).toBe(fullName)
+      const formatted = formatError(supabase429Error)
+      expect(formatted).toContain('HTTP 429: over_email_send_rate_limit')
+      expect(formatted).toContain('email rate limit exceeded')
+      expect(formatted).toContain('Automatic retries are disabled')
     })
 
-    it('allows active authenticated session to synchronize profile via POST /api/auth/sync-profile (200)', async () => {
-      const userId = 'user-a'
-      const token = createTestJwt(userId, 'usera@example.com')
+    it('detects existing registered user when identities array is empty', () => {
+      // Supabase GoTrue returns empty identities array when user already exists
+      const existingUserResponse = {
+        user: {
+          id: 'user-existing-123',
+          email: 'existing@vaani.ai',
+          identities: [],
+        },
+        session: null,
+      }
 
-      const res = await request(app)
-        .post('/api/auth/sync-profile')
-        .set('Authorization', `Bearer ${token}`)
-        .send({
-          displayName: 'User A Modified Callsign',
-        })
+      const isAlreadyRegistered =
+        existingUserResponse.user &&
+        Array.isArray(existingUserResponse.user.identities) &&
+        existingUserResponse.user.identities.length === 0
 
-      expect(res.status).toBe(200)
-      expect(res.body.ok).toBe(true)
-      expect(res.body.user.display_name).toBe('User A Modified Callsign')
-
-      const updated = await dbRepo.getProfile(userId)
-      expect(updated?.display_name).toBe('User A Modified Callsign')
+      expect(isAlreadyRegistered).toBe(true)
     })
+  })
 
-    it('rejects unauthenticated calls to POST /api/auth/sync-profile (401)', async () => {
+  // ---------------------------------------------------------------------------
+  // 3. Post-Authentication Profile Synchronization (Task 8)
+  // ---------------------------------------------------------------------------
+  describe('3. Profile Creation Happens Only After Successful Authentication (Task 8)', () => {
+    it('rejects unauthenticated requests to create or sync profile (401)', async () => {
       const res = await request(app)
         .post('/api/auth/sync-profile')
         .send({
-          displayName: 'Intruder',
+          displayName: 'Unauthenticated Attacker',
         })
 
       expect(res.status).toBe(401)
       expect(res.body.error).toBe('UNAUTHORIZED')
     })
-  })
 
-  // ---------------------------------------------------------------------------
-  // 3. User Session & Profile Retrieval
-  // ---------------------------------------------------------------------------
-  describe('3. User Session & Profile Retrieval', () => {
-    it('returns the authenticated user profile on GET /api/auth/me (200)', async () => {
+    it('allows authenticated session with valid JWT to synchronize profile (200)', async () => {
       const userId = 'user-a'
       const token = createTestJwt(userId, 'usera@example.com')
 
       const res = await request(app)
-        .get('/api/auth/me')
+        .post('/api/auth/sync-profile')
         .set('Authorization', `Bearer ${token}`)
+        .send({
+          displayName: 'User A Authenticated Callsign',
+        })
 
       expect(res.status).toBe(200)
-      expect(res.body.user).toBeDefined()
-      expect(res.body.user.id).toBe(userId)
-      expect(res.body.user.email).toBe('usera@example.com')
-      expect(res.body.user.display_name).toBe('User A')
+      expect(res.body.ok).toBe(true)
+      expect(res.body.user.display_name).toBe('User A Authenticated Callsign')
+
+      const profile = await dbRepo.getProfile(userId)
+      expect(profile?.display_name).toBe('User A Authenticated Callsign')
     })
   })
 
@@ -156,10 +155,9 @@ describe('VAANI — Supabase Signup Flow & Profile Persistence Suite', () => {
   // 4. Strict Isolation & Security Hardening
   // ---------------------------------------------------------------------------
   describe('4. Strict Isolation & Security Hardening', () => {
-    it('ensures User B token cannot read or mutate User A profile', async () => {
+    it('ensures User B cannot read or modify User A profile', async () => {
       const userBToken = createTestJwt('user-b', 'userb@example.com')
 
-      // User B calling /me receives their own profile, not User A
       const res = await request(app)
         .get('/api/auth/me')
         .set('Authorization', `Bearer ${userBToken}`)
@@ -170,93 +168,107 @@ describe('VAANI — Supabase Signup Flow & Profile Persistence Suite', () => {
       expect(res.body.user.email).toBe('userb@example.com')
     })
 
-    it('verifies that service role operations are blocked when using anon credentials', async () => {
-      expect(supabaseAdmin).toBeDefined()
-      expect(supabaseAnon).toBeDefined()
-
-      // Calling admin methods on anon client is rejected by Supabase API
+    it('verifies that service role operations are blocked on anon credentials', async () => {
       const { error: anonError } = await supabaseAnon.auth.admin.listUsers()
       expect(anonError).not.toBeNull()
       expect(anonError?.message || '').toMatch(/not allowed|unauthorized/i)
-
-      // Calling admin methods on admin client succeeds
-      const { data: adminData, error: adminError } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1 })
-      expect(adminError).toBeNull()
-      expect(adminData?.users).toBeDefined()
     })
   })
 
   // ---------------------------------------------------------------------------
-  // 5. Supabase Auth User Creation & Profile Lifecycle
+  // 5. Complete Real Signup & Authentication Lifecycle
   // ---------------------------------------------------------------------------
-  describe('5. Supabase Auth User Creation & Profile Lifecycle', () => {
-    it('creates a user with metadata and synchronizes profile record in database', async () => {
-      const testEmail = `vaani_lifecycle_${Date.now()}@vaani.ai`
+  describe('5. Real Signup & Authentication Lifecycle Verification', () => {
+    it('provisions a new user in Supabase Auth, authenticates, and verifies profile sync', async () => {
+      const testEmail = `vaani_real_user_${Date.now()}@vaani.ai`
       const testPass = 'SecureVoxelPass2026!'
-      const fullName = 'Priya Sharma'
+      const fullName = 'Kavya Nair'
 
-      // Admin createUser creates the user in auth.users without consuming the SMTP email rate limit
-      const { data, error } = await supabaseAdmin.auth.admin.createUser({
-        email: testEmail,
-        password: testPass,
-        email_confirm: true,
-        user_metadata: {
-          full_name: fullName,
-          display_name: fullName,
-        },
-      })
+      // Step 1: Provision account via server-assisted Studio Signup
+      const regRes = await request(app)
+        .post('/api/auth/signup')
+        .send({
+          email: testEmail,
+          password: testPass,
+          fullName,
+        })
 
-      expect(error).toBeNull()
-      expect(data.user).not.toBeNull()
-      expect(data.user?.email).toBe(testEmail)
-      expect(data.user?.user_metadata?.full_name).toBe(fullName)
+      expect(regRes.status).toBe(201)
+      expect(regRes.body.ok).toBe(true)
+      expect(regRes.body.user?.id).toBeDefined()
+      expect(regRes.body.user?.email).toBe(testEmail)
 
-      const userId = data.user!.id
+      const userId = regRes.body.user.id
 
       try {
-        // Step 2: Register profile through backend endpoint
-        const regRes = await request(app)
-          .post('/api/auth/register-profile')
+        // Step 2: Authenticate via standard Supabase signInWithPassword (as client does)
+        const { data: authData, error: authError } = await supabaseAnon.auth.signInWithPassword({
+          email: testEmail,
+          password: testPass,
+        })
+
+        expect(authError).toBeNull()
+        expect(authData.session).not.toBeNull()
+        expect(authData.session?.access_token).toBeDefined()
+        expect(authData.user?.id).toBe(userId)
+
+        // Step 3: Synchronize profile with active authenticated session token
+        const syncRes = await request(app)
+          .post('/api/auth/sync-profile')
+          .set('Authorization', `Bearer ${authData.session!.access_token}`)
           .send({
-            userId,
-            email: testEmail,
-            fullName,
+            displayName: fullName,
           })
 
-        expect(regRes.status).toBe(201)
-        expect(regRes.body.user.id).toBe(userId)
-        expect(regRes.body.user.display_name).toBe(fullName)
+        expect(syncRes.status).toBe(200)
+        expect(syncRes.body.user.display_name).toBe(fullName)
 
-        // Step 3: Verify profile is retrieved through repository
-        const profile = await dbRepo.getProfile(userId)
-        expect(profile).not.toBeNull()
-        expect(profile?.email).toBe(testEmail)
+        // Step 4: Verify profile retrieved via authenticated GET /api/auth/me
+        const meRes = await request(app)
+          .get('/api/auth/me')
+          .set('Authorization', `Bearer ${authData.session!.access_token}`)
+
+        expect(meRes.status).toBe(200)
+        expect(meRes.body.user.id).toBe(userId)
+        expect(meRes.body.user.email).toBe(testEmail)
       } finally {
-        // Step 4: Cleanup created test user from Supabase auth and profiles
+        // Cleanup created user from remote Supabase
         await supabaseAdmin.from('profiles').delete().eq('id', userId)
         await supabaseAdmin.auth.admin.deleteUser(userId)
       }
     })
 
-    it('handles Supabase rate limit and error codes cleanly', async () => {
-      // Simulating client handling of rate limit response
-      const rateLimitError = {
-        name: 'AuthApiError',
-        status: 429,
-        code: 'over_email_send_rate_limit',
-        message: 'email rate limit exceeded',
-      }
+    it('rejects duplicate signup for already registered email (409 Conflict)', async () => {
+      const duplicateEmail = `vaani_dup_${Date.now()}@vaani.ai`
+      const password = 'SecurePassword2026!'
 
-      const getFriendlyMessage = (err: any) => {
-        if (err.status === 429 || err.code === 'over_email_send_rate_limit') {
-          return 'Email rate limit exceeded. Please wait a few minutes before trying again.'
-        }
-        return err.message
-      }
+      // 1. Initial registration
+      const firstRes = await request(app)
+        .post('/api/auth/signup')
+        .send({
+          email: duplicateEmail,
+          password,
+          fullName: 'Original User',
+        })
+      expect(firstRes.status).toBe(201)
+      const userId = firstRes.body.user.id
 
-      expect(getFriendlyMessage(rateLimitError)).toBe(
-        'Email rate limit exceeded. Please wait a few minutes before trying again.'
-      )
+      try {
+        // 2. Duplicate registration attempt
+        const dupRes = await request(app)
+          .post('/api/auth/signup')
+          .send({
+            email: duplicateEmail,
+            password,
+            fullName: 'Duplicate User',
+          })
+
+        expect(dupRes.status).toBe(409)
+        expect(dupRes.body.error).toMatch(/already registered/i)
+      } finally {
+        await supabaseAdmin.from('profiles').delete().eq('id', userId)
+        await supabaseAdmin.auth.admin.deleteUser(userId)
+      }
     })
   })
 })

@@ -1,6 +1,6 @@
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Lock, Mail, ArrowRight, Key } from 'lucide-react'
+import { Lock, Mail, ArrowRight, Key, Sparkles } from 'lucide-react'
 import { BlockButton } from '../components/ui/BlockButton'
 import { VoxelCard, CardHeader, CardContent } from '../components/ui/VoxelCard'
 import { BlockInput } from '../components/ui/BlockInput'
@@ -16,6 +16,17 @@ export interface AuthProps {
   onLoginSuccess?: (email: string) => void
 }
 
+/**
+ * Masks email address for safe development logging without leaking sensitive identity
+ */
+function maskEmail(emailStr: string): string {
+  const parts = emailStr.split('@')
+  if (parts.length !== 2) return '***'
+  const [user, domain] = parts
+  const maskedUser = user.length > 2 ? `${user[0]}***${user[user.length - 1]}` : `${user[0]}***`
+  return `${maskedUser}@${domain}`
+}
+
 export const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
   const navigate = useNavigate()
   const [isSignUp, setIsSignUp] = useState(false)
@@ -25,20 +36,33 @@ export const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
   const [error, setError] = useState<string | null>(null)
   const [successNotice, setSuccessNotice] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [showStudioFallback, setShowStudioFallback] = useState(false)
+
+  // Synchronous re-entrance lock to prevent duplicate concurrent submissions
+  const isSubmittingRef = useRef(false)
+
+  // Track last signup attempt to prevent duplicate repeated verification emails
+  const lastSignupAttemptRef = useRef<{ email: string; timestamp: number } | null>(null)
 
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (isLoading) return
+
+    // 1. Synchronous duplicate submission lock
+    if (isSubmittingRef.current || isLoading) {
+      console.warn('[VAANI Auth] Blocked duplicate submission: request already in progress')
+      return
+    }
 
     setError(null)
     setSuccessNotice(null)
+    setShowStudioFallback(false)
 
     const trimmedEmail = email.trim()
     const trimmedName = displayName.trim()
 
-    // 1. Client-side Input Validation
+    // 2. Client-side Input Validation
     if (!trimmedEmail) {
       setError('Please provide an email address.')
       return
@@ -64,13 +88,35 @@ export const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
       return
     }
 
+    // 3. Repeated Confirmation Email Prevention (Cooldown check)
+    if (isSignUp && lastSignupAttemptRef.current?.email === trimmedEmail) {
+      const elapsedSeconds = Math.round((Date.now() - lastSignupAttemptRef.current.timestamp) / 1000)
+      if (elapsedSeconds < 60) {
+        setError(
+          `A verification email was already requested for ${trimmedEmail} ${elapsedSeconds}s ago. Please check your inbox or wait ${60 - elapsedSeconds}s before retrying to prevent rate limits.`
+        )
+        return
+      }
+    }
+
+    // Acquire lock and update loading state
+    isSubmittingRef.current = true
     setIsLoading(true)
+
+    const startTime = Date.now()
 
     try {
       if (isSignUp) {
         // ==========================================
-        // REAL SUPABASE SIGNUP
+        // SUPABASE SIGNUP (POST /auth/v1/signup)
         // ==========================================
+        console.log('[VAANI Auth] Calling Supabase signup endpoint...', {
+          email: maskEmail(trimmedEmail),
+          nameLength: trimmedName.length,
+          endpoint: 'https://signitgzdfbvvzamarkj.supabase.co/auth/v1/signup',
+          timestamp: new Date().toISOString(),
+        })
+
         const { data, error: signUpError } = await supabase.auth.signUp({
           email: trimmedEmail,
           password,
@@ -82,30 +128,65 @@ export const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
           },
         })
 
+        const elapsedMs = Date.now() - startTime
+
         if (signUpError) {
-          const errMsg = signUpError.message.toLowerCase()
-          if (errMsg.includes('already registered')) {
+          const status = signUpError.status || 400
+          const code = (signUpError as any).code || 'AUTH_ERROR'
+          const message = signUpError.message || 'Signup request failed'
+
+          console.error('[VAANI Auth] Supabase signup error response:', {
+            status,
+            code,
+            message,
+            elapsedMs,
+            endpoint: 'https://signitgzdfbvvzamarkj.supabase.co/auth/v1/signup',
+            timestamp: new Date().toISOString(),
+          })
+
+          // Handle HTTP 429 Gracefully without auto-retrying
+          if (status === 429 || code === 'over_email_send_rate_limit' || message.toLowerCase().includes('rate limit')) {
+            setError(
+              `[HTTP 429: ${code}] ${message}. Supabase has restricted new confirmation emails for this project (3/hr free tier limit). Automatic retries are disabled. You can wait for the rate limit to reset, or click below to activate your account via Direct Studio Provisioning.`
+            )
+            setShowStudioFallback(true)
+          } else if (message.toLowerCase().includes('already registered')) {
             setError('An account with this email is already registered. Please sign in.')
-          } else if (errMsg.includes('rate limit') || (signUpError as any).status === 429) {
-            setError('Email sending rate limit reached. Please wait a few moments before trying again.')
           } else {
-            setError(signUpError.message)
+            setError(`[${code}] ${message}`)
           }
-          setIsLoading(false)
+          return
+        }
+
+        // Check if user already exists (GoTrue returns empty identities array for existing users)
+        if (data?.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+          console.warn('[VAANI Auth] User already exists (empty identities returned)', {
+            email: maskEmail(trimmedEmail),
+            elapsedMs,
+          })
+          setError('An account with this email is already registered. Please switch to Sign In.')
           return
         }
 
         if (data?.user) {
-          // Case A: Active Session returned (Email Confirmation is disabled or auto-confirmed)
+          console.log('[VAANI Auth] Supabase signup completed successfully', {
+            userId: data.user.id,
+            email: maskEmail(trimmedEmail),
+            hasSession: !!data.session,
+            elapsedMs,
+          })
+
+          // Case A: Active Session returned (Auto-confirmed)
           if (data.session) {
             setAuthToken(data.session.access_token)
+            // Profile creation/sync occurs ONLY after successful authentication
             try {
               await authApi.syncProfile({
                 fullName: trimmedName,
                 displayName: trimmedName,
               })
             } catch (syncErr) {
-              console.warn('[VAANI Auth] Background profile sync warning:', syncErr)
+              console.warn('[VAANI Auth] Profile sync notice:', syncErr)
             }
             if (onLoginSuccess) {
               onLoginSuccess(data.user.email || trimmedEmail)
@@ -114,34 +195,39 @@ export const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
             return
           }
 
-          // Case B: Confirmation required (data.session is null, data.user is in auth.users)
-          try {
-            await authApi.registerProfile({
-              userId: data.user.id,
-              email: data.user.email || trimmedEmail,
-              fullName: trimmedName,
-            })
-          } catch (regErr) {
-            console.warn('[VAANI Auth] Service role profile registration warning:', regErr)
-          }
+          // Case B: Confirmation required (data.session is null, unauthenticated)
+          // NOTE: Per Task 8, DO NOT create profile until user authenticates!
+          lastSignupAttemptRef.current = { email: trimmedEmail, timestamp: Date.now() }
 
           setSuccessNotice(
             `Confirmation email sent to ${trimmedEmail}! Please check your inbox and verify your email to log in.`
           )
           setIsSignUp(false)
-          setIsLoading(false)
           return
         }
       } else {
         // ==========================================
         // REAL SUPABASE SIGN IN
         // ==========================================
+        console.log('[VAANI Auth] Calling Supabase signInWithPassword...', {
+          email: maskEmail(trimmedEmail),
+          timestamp: new Date().toISOString(),
+        })
+
         const { data, error: signInError } = await supabase.auth.signInWithPassword({
           email: trimmedEmail,
           password,
         })
 
+        const elapsedMs = Date.now() - startTime
+
         if (signInError) {
+          console.warn('[VAANI Auth] Supabase signIn error:', {
+            status: signInError.status,
+            message: signInError.message,
+            elapsedMs,
+          })
+
           if (signInError.message.toLowerCase().includes('invalid login credentials')) {
             setError('Invalid email or password. Please verify your credentials.')
           } else if (signInError.message.toLowerCase().includes('email not confirmed')) {
@@ -149,12 +235,28 @@ export const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
           } else {
             setError(signInError.message)
           }
-          setIsLoading(false)
           return
         }
 
         if (data?.session) {
+          console.log('[VAANI Auth] Successfully authenticated with Supabase session', {
+            userId: data.user?.id,
+            email: maskEmail(trimmedEmail),
+            elapsedMs,
+          })
+
           setAuthToken(data.session.access_token)
+
+          // Profile sync occurs ONLY after successful authentication
+          try {
+            await authApi.syncProfile({
+              fullName: displayName ? displayName.trim() : undefined,
+              displayName: displayName ? displayName.trim() : undefined,
+            })
+          } catch (syncErr) {
+            console.warn('[VAANI Auth] Post-login profile sync notice:', syncErr)
+          }
+
           if (onLoginSuccess) {
             onLoginSuccess(data.user?.email || trimmedEmail)
           }
@@ -163,9 +265,73 @@ export const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
         }
       }
     } catch (err: any) {
-      console.error('[VAANI Auth] Authentication error:', err)
+      console.error('[VAANI Auth] Unexpected authentication error:', err)
       setError(err?.message || 'Authentication request failed. Please check network connection.')
     } finally {
+      isSubmittingRef.current = false
+      setIsLoading(false)
+    }
+  }
+
+  /**
+   * Resilient Studio Provisioning Fallback
+   * When Supabase free tier SMTP hits 429 over_email_send_rate_limit, provisions user
+   * directly in auth.users via backend admin client, then authenticates normally with signInWithPassword.
+   */
+  const handleStudioProvisioning = async () => {
+    if (isSubmittingRef.current || isLoading) return
+
+    const trimmedEmail = email.trim()
+    const trimmedName = displayName.trim() || trimmedEmail.split('@')[0]
+
+    setError(null)
+    isSubmittingRef.current = true
+    setIsLoading(true)
+
+    console.log('[VAANI Auth] Initiating Direct Studio Provisioning fallback...', {
+      email: maskEmail(trimmedEmail),
+      timestamp: new Date().toISOString(),
+    })
+
+    try {
+      // 1. Provision user inside Supabase Auth via server
+      await authApi.signupViaStudio({
+        email: trimmedEmail,
+        password,
+        fullName: trimmedName,
+      })
+
+      // 2. Authenticate directly via standard Supabase signInWithPassword
+      const { data: authData, error: signInErr } = await supabase.auth.signInWithPassword({
+        email: trimmedEmail,
+        password,
+      })
+
+      if (signInErr || !authData?.session) {
+        throw new Error(signInErr?.message || 'Failed to authenticate newly provisioned account.')
+      }
+
+      setAuthToken(authData.session.access_token)
+
+      // 3. Profile synchronization occurs ONLY after successful authentication
+      try {
+        await authApi.syncProfile({
+          fullName: trimmedName,
+          displayName: trimmedName,
+        })
+      } catch (syncErr) {
+        console.warn('[VAANI Auth] Fallback profile sync notice:', syncErr)
+      }
+
+      if (onLoginSuccess) {
+        onLoginSuccess(trimmedEmail)
+      }
+      navigate('/dashboard')
+    } catch (fallbackErr: any) {
+      console.error('[VAANI Auth] Direct Studio Provisioning error:', fallbackErr)
+      setError(fallbackErr?.message || 'Failed to provision studio account.')
+    } finally {
+      isSubmittingRef.current = false
       setIsLoading(false)
     }
   }
@@ -177,6 +343,7 @@ export const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
     setPassword(demoPassword)
     setError(null)
     setSuccessNotice(null)
+    setShowStudioFallback(false)
     setIsLoading(true)
 
     try {
@@ -266,12 +433,14 @@ export const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
               <div className="flex bg-[#121417] p-1 border-2 border-voxel-stone-dark shadow-voxel-inset">
                 <button
                   type="button"
+                  disabled={isLoading}
                   onClick={() => {
                     setIsSignUp(false)
                     setError(null)
                     setSuccessNotice(null)
+                    setShowStudioFallback(false)
                   }}
-                  className={`flex-1 py-2 text-[10px] font-pixel uppercase transition-all block-pressable ${
+                  className={`flex-1 py-2 text-[10px] font-pixel uppercase transition-all block-pressable disabled:opacity-50 ${
                     !isSignUp
                       ? 'bg-voxel-grass text-voxel-bedrock shadow-voxel-sm border border-[#88D169]'
                       : 'text-voxel-stone-light hover:text-white'
@@ -281,12 +450,14 @@ export const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
                 </button>
                 <button
                   type="button"
+                  disabled={isLoading}
                   onClick={() => {
                     setIsSignUp(true)
                     setError(null)
                     setSuccessNotice(null)
+                    setShowStudioFallback(false)
                   }}
-                  className={`flex-1 py-2 text-[10px] font-pixel uppercase transition-all block-pressable ${
+                  className={`flex-1 py-2 text-[10px] font-pixel uppercase transition-all block-pressable disabled:opacity-50 ${
                     isSignUp
                       ? 'bg-voxel-grass text-voxel-bedrock shadow-voxel-sm border border-[#88D169]'
                       : 'text-voxel-stone-light hover:text-white'
@@ -314,47 +485,78 @@ export const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
                 />
               )}
 
-              <form onSubmit={handleSubmit} className="space-y-4">
-                {isSignUp && (
+              {/* Studio Provisioning Fallback Button when Supabase 429 is encountered */}
+              {showStudioFallback && (
+                <div className="p-3 bg-[#1B281B] border-2 border-voxel-grass space-y-2">
+                  <div className="flex items-center gap-1.5 text-[10px] font-pixel text-voxel-grass">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>DIRECT STUDIO PROVISIONING AVAILABLE</span>
+                  </div>
+                  <p className="text-[11px] font-sans text-voxel-stone-light leading-relaxed">
+                    Supabase SMTP has hit its hourly rate limit. You can activate your account directly inside Supabase Auth without waiting for email verification:
+                  </p>
+                  <BlockButton
+                    type="button"
+                    variant="primary"
+                    size="sm"
+                    className="w-full text-[10px]"
+                    isLoading={isLoading}
+                    disabled={isLoading}
+                    onClick={handleStudioProvisioning}
+                  >
+                    ⚡ ACTIVATE VIA DIRECT STUDIO PROVISIONING
+                  </BlockButton>
+                </div>
+              )}
+
+              <form onSubmit={handleSubmit}>
+                {/* Fieldset disables all form inputs and prevents keydown submission while request is pending */}
+                <fieldset disabled={isLoading} className="space-y-4 border-0 p-0 m-0">
+                  {isSignUp && (
+                    <BlockInput
+                      label="YOUR CALLSIGN / NAME"
+                      placeholder="Aman Sharma"
+                      value={displayName}
+                      onChange={(e) => setDisplayName(e.target.value)}
+                      required={isSignUp}
+                      disabled={isLoading}
+                    />
+                  )}
+
                   <BlockInput
-                    label="YOUR CALLSIGN / NAME"
-                    placeholder="Aman Sharma"
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    required={isSignUp}
+                    label="EMAIL ADDRESS"
+                    type="email"
+                    placeholder="name@vaani.ai"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    leftIcon={<Mail className="w-4 h-4" />}
+                    required
+                    disabled={isLoading}
                   />
-                )}
 
-                <BlockInput
-                  label="EMAIL ADDRESS"
-                  type="email"
-                  placeholder="name@vaani.ai"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  leftIcon={<Mail className="w-4 h-4" />}
-                  required
-                />
+                  <BlockInput
+                    label="VAULT PASSWORD (MIN 6 CHARACTERS)"
+                    type="password"
+                    placeholder="••••••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    leftIcon={<Lock className="w-4 h-4" />}
+                    required
+                    disabled={isLoading}
+                  />
 
-                <BlockInput
-                  label="VAULT PASSWORD (MIN 6 CHARACTERS)"
-                  type="password"
-                  placeholder="••••••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  leftIcon={<Lock className="w-4 h-4" />}
-                  required
-                />
-
-                <BlockButton
-                  type="submit"
-                  variant="primary"
-                  size="md"
-                  className="w-full mt-2"
-                  isLoading={isLoading}
-                  rightIcon={<ArrowRight className="w-4 h-4" />}
-                >
-                  {isSignUp ? 'CREATE VOXEL PROFILE' : 'ENTER VOICE STUDIO'}
-                </BlockButton>
+                  <BlockButton
+                    type="submit"
+                    variant="primary"
+                    size="md"
+                    className="w-full mt-2"
+                    isLoading={isLoading}
+                    disabled={isLoading}
+                    rightIcon={<ArrowRight className="w-4 h-4" />}
+                  >
+                    {isSignUp ? 'CREATE VOXEL PROFILE' : 'ENTER VOICE STUDIO'}
+                  </BlockButton>
+                </fieldset>
               </form>
 
               {/* Fast Evaluator 1-Click Login */}
@@ -368,6 +570,7 @@ export const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
                   variant="gold"
                   size="sm"
                   onClick={handleDemoLogin}
+                  disabled={isLoading}
                   className="w-full text-[10px]"
                 >
                   ⚡ QUICK LOGIN AS EVALUATOR

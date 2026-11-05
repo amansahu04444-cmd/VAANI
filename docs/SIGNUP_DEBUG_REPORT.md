@@ -231,3 +231,4 @@ CREATE POLICY "profiles_insert_own" ON public.profiles FOR INSERT WITH CHECK (au
 - [server/src/modules/auth/auth.routes.ts](file:///c:/Users/amans/OneDrive/Desktop/VAANI/server/src/modules/auth/auth.routes.ts): Added `POST /register-profile` and `POST /sync-profile`.
 - [server/migrations/003_auth_profiles_trigger.sql](file:///c:/Users/amans/OneDrive/Desktop/VAANI/server/migrations/003_auth_profiles_trigger.sql): Auth trigger and RLS migration script.
 - [server/src/__tests__/signup_flow.test.ts](file:///c:/Users/amans/OneDrive/Desktop/VAANI/server/src/__tests__/signup_flow.test.ts): 11 comprehensive automated tests.
+

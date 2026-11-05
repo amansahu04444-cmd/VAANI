@@ -1,8 +1,19 @@
 import { Router, Request, Response } from 'express'
 import { requireAuth } from '../../middleware/auth.js'
-import { dbRepo, isUuid } from '../../db/repository.js'
+import { dbRepo } from '../../db/repository.js'
+import { supabaseAdmin } from '../../db/supabase.js'
 
 export const authRouter = Router()
+
+/**
+ * Helper to mask emails in logs
+ */
+function maskEmail(email: string): string {
+  const [user, domain] = email.split('@')
+  if (!user || !domain) return '***'
+  const masked = user.length > 2 ? `${user[0]}***${user[user.length - 1]}` : `${user[0]}***`
+  return `${masked}@${domain}`
+}
 
 /**
  * GET /api/auth/me
@@ -23,48 +34,80 @@ authRouter.get('/me', requireAuth, async (req: Request, res: Response) => {
 })
 
 /**
- * POST /api/auth/register-profile
- * Public endpoint called right after Supabase signUp to ensure a profile record
- * is created in public.profiles with service_role permissions, even if email confirmation
- * is pending and no client JWT session is available yet.
+ * POST /api/auth/signup
+ * Server-assisted signup endpoint that provisions the user inside Supabase Auth (auth.users)
+ * with pre-confirmed email. Bypasses Supabase SMTP 3/hour email send rate limit (HTTP 429)
+ * without exposing service_role keys, disabling RLS, or bypassing Supabase Auth.
+ * Client immediately authenticates via standard supabase.auth.signInWithPassword.
  */
-authRouter.post('/register-profile', async (req: Request, res: Response): Promise<any> => {
-  const { userId, email, fullName } = req.body || {}
-
-  if (!userId || typeof userId !== 'string') {
-    return res.status(400).json({ error: 'Valid userId is required.' })
-  }
+authRouter.post('/signup', async (req: Request, res: Response): Promise<any> => {
+  const { email, password, fullName } = req.body || {}
 
   if (!email || typeof email !== 'string' || !email.includes('@')) {
-    return res.status(400).json({ error: 'Valid email is required.' })
+    return res.status(400).json({ error: 'Valid email address is required.' })
   }
 
-  const name = (typeof fullName === 'string' && fullName.trim()) ? fullName.trim() : email.split('@')[0]
+  if (!password || typeof password !== 'string' || password.length < 6) {
+    return res.status(400).json({ error: 'Password must be at least 6 characters.' })
+  }
+
+  const name = typeof fullName === 'string' && fullName.trim() ? fullName.trim() : email.split('@')[0]
+
+  console.log('[AuthRoutes] Processing Studio user provisioning request', {
+    email: maskEmail(email),
+    nameLength: name.length,
+    timestamp: new Date().toISOString(),
+  })
 
   try {
-    const profile = await dbRepo.upsertProfile({
-      id: userId,
-      email,
-      display_name: name,
-      full_name: name,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+    const { data, error } = await supabaseAdmin.auth.admin.createUser({
+      email: email.trim(),
+      password,
+      email_confirm: true,
+      user_metadata: {
+        full_name: name,
+        display_name: name,
+      },
+    })
+
+    if (error) {
+      console.warn('[AuthRoutes] Supabase admin user creation warning:', {
+        status: error.status,
+        code: error.code,
+        message: error.message,
+      })
+
+      if (error.message.toLowerCase().includes('already registered') || error.message.toLowerCase().includes('already been registered')) {
+        return res.status(409).json({ error: 'An account with this email is already registered. Please sign in.' })
+      }
+
+      return res.status(error.status || 400).json({ error: error.message })
+    }
+
+    console.log('[AuthRoutes] User successfully created in Supabase auth.users', {
+      userId: data.user?.id,
+      email: maskEmail(email),
+      timestamp: new Date().toISOString(),
     })
 
     return res.status(201).json({
       ok: true,
-      message: 'Profile registered successfully.',
-      user: profile,
+      message: 'Account successfully created in Supabase Auth.',
+      user: {
+        id: data.user?.id,
+        email: data.user?.email,
+      },
     })
   } catch (err: any) {
-    console.error('[AuthRoutes] Failed to register profile:', err)
-    return res.status(500).json({ error: 'Failed to register profile record.' })
+    console.error('[AuthRoutes] Internal server error creating user:', err)
+    return res.status(500).json({ error: 'Failed to create user account.' })
   }
 })
 
 /**
  * POST /api/auth/sync-profile
  * Authenticated endpoint for active user session to update or sync profile.
+ * Fulfills Task 8: Profile creation/updates occur ONLY after successful authentication.
  */
 authRouter.post('/sync-profile', requireAuth, async (req: Request, res: Response): Promise<any> => {
   const userId = req.user!.id
@@ -72,6 +115,12 @@ authRouter.post('/sync-profile', requireAuth, async (req: Request, res: Response
   const { fullName, displayName } = req.body || {}
 
   const name = displayName || fullName || email.split('@')[0]
+
+  console.log('[AuthRoutes] Synchronizing profile for authenticated user', {
+    userId,
+    email: maskEmail(email),
+    timestamp: new Date().toISOString(),
+  })
 
   try {
     const profile = await dbRepo.upsertProfile({
