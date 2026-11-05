@@ -56,7 +56,21 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
 // ---------------------------------------------------------------------------
 export const authApi = {
   async getMe() {
-    return apiRequest<{ user: { id: string; email: string; display_name: string } }>('/auth/me')
+    return apiRequest<{ user: { id: string; email: string; display_name: string; full_name?: string } }>('/auth/me')
+  },
+
+  async registerProfile(payload: { userId: string; email: string; fullName: string }) {
+    return apiRequest<{ ok: boolean; message: string; user: any }>('/auth/register-profile', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+  },
+
+  async syncProfile(payload: { fullName?: string; displayName?: string }) {
+    return apiRequest<{ ok: boolean; message: string; user: any }>('/auth/sync-profile', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
   },
 }
 

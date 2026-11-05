@@ -4,6 +4,7 @@ export interface ProfileRecord {
   id: string
   email: string
   display_name: string
+  full_name?: string
   created_at: string
   updated_at?: string
 }
@@ -183,13 +184,25 @@ export class SupabaseRepository {
     mockDb.profiles.set(profile.id, profile)
     if (isUuid(profile.id)) {
       try {
-        await supabaseAdmin.from('profiles').upsert({
+        const payload: Record<string, any> = {
           id: profile.id,
           email: profile.email,
           display_name: profile.display_name,
           updated_at: new Date().toISOString(),
-        })
-      } catch {}
+        }
+        if (profile.full_name) {
+          payload.full_name = profile.full_name
+        }
+
+        const { error } = await supabaseAdmin.from('profiles').upsert(payload)
+        // If full_name column doesn't exist yet on remote schema, retry without it
+        if (error && error.message.includes('full_name')) {
+          delete payload.full_name
+          await supabaseAdmin.from('profiles').upsert(payload)
+        }
+      } catch (err) {
+        console.error('[Repository] Error upserting profile to Supabase:', err)
+      }
     }
     return profile
   }

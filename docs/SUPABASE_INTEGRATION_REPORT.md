@@ -150,3 +150,4 @@ While all core tables and private storage buckets are already functioning, the f
    - Under **Authentication > Providers > Email**, ensure "Confirm email" is toggled according to your development or production requirements.
 3. **Storage CORS (For direct frontend playback):**
    - Under **Storage > Settings**, verify allowed origins include `http://localhost:5173` and `http://localhost:5000`.
+

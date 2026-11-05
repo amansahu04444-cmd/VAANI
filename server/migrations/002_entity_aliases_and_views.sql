@@ -92,3 +92,4 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.user_profiles TO authenticated, a
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.generation_jobs TO authenticated, anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.audio_generations TO authenticated, anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.user_consents TO authenticated, anon;
+

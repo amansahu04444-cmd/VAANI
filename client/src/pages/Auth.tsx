@@ -9,6 +9,8 @@ import { VoxelWaveform } from '../components/ui/VoxelWaveform'
 import { BlockBadge } from '../components/ui/BlockBadge'
 import { BlockNoticeBanner } from '../components/ui/BlockNoticeBanner'
 import { APP_NAME } from '../lib/constants'
+import { supabase } from '../lib/supabase'
+import { setAuthToken, authApi } from '../lib/api'
 
 export interface AuthProps {
   onLoginSuccess?: (email: string) => void
@@ -21,40 +23,184 @@ export const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
   const [password, setPassword] = useState('')
   const [displayName, setDisplayName] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [successNotice, setSuccessNotice] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    setError(null)
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
-    if (!email || !password) {
-      setError('Please provide both email and password.')
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (isLoading) return
+
+    setError(null)
+    setSuccessNotice(null)
+
+    const trimmedEmail = email.trim()
+    const trimmedName = displayName.trim()
+
+    // 1. Client-side Input Validation
+    if (!trimmedEmail) {
+      setError('Please provide an email address.')
       return
     }
 
-    if (isSignUp && !displayName) {
-      setError('Please provide your name.')
+    if (!emailRegex.test(trimmedEmail)) {
+      setError('Please enter a valid email address (e.g. name@vaani.ai).')
+      return
+    }
+
+    if (!password) {
+      setError('Please provide a password.')
+      return
+    }
+
+    if (password.length < 6) {
+      setError('Vault password must be at least 6 characters long.')
+      return
+    }
+
+    if (isSignUp && !trimmedName) {
+      setError('Please provide your callsign / name.')
       return
     }
 
     setIsLoading(true)
-    setTimeout(() => {
-      setIsLoading(false)
-      if (onLoginSuccess) {
-        onLoginSuccess(email)
+
+    try {
+      if (isSignUp) {
+        // ==========================================
+        // REAL SUPABASE SIGNUP
+        // ==========================================
+        const { data, error: signUpError } = await supabase.auth.signUp({
+          email: trimmedEmail,
+          password,
+          options: {
+            data: {
+              full_name: trimmedName,
+              display_name: trimmedName,
+            },
+          },
+        })
+
+        if (signUpError) {
+          const errMsg = signUpError.message.toLowerCase()
+          if (errMsg.includes('already registered')) {
+            setError('An account with this email is already registered. Please sign in.')
+          } else if (errMsg.includes('rate limit') || (signUpError as any).status === 429) {
+            setError('Email sending rate limit reached. Please wait a few moments before trying again.')
+          } else {
+            setError(signUpError.message)
+          }
+          setIsLoading(false)
+          return
+        }
+
+        if (data?.user) {
+          // Case A: Active Session returned (Email Confirmation is disabled or auto-confirmed)
+          if (data.session) {
+            setAuthToken(data.session.access_token)
+            try {
+              await authApi.syncProfile({
+                fullName: trimmedName,
+                displayName: trimmedName,
+              })
+            } catch (syncErr) {
+              console.warn('[VAANI Auth] Background profile sync warning:', syncErr)
+            }
+            if (onLoginSuccess) {
+              onLoginSuccess(data.user.email || trimmedEmail)
+            }
+            navigate('/dashboard')
+            return
+          }
+
+          // Case B: Confirmation required (data.session is null, data.user is in auth.users)
+          try {
+            await authApi.registerProfile({
+              userId: data.user.id,
+              email: data.user.email || trimmedEmail,
+              fullName: trimmedName,
+            })
+          } catch (regErr) {
+            console.warn('[VAANI Auth] Service role profile registration warning:', regErr)
+          }
+
+          setSuccessNotice(
+            `Confirmation email sent to ${trimmedEmail}! Please check your inbox and verify your email to log in.`
+          )
+          setIsSignUp(false)
+          setIsLoading(false)
+          return
+        }
+      } else {
+        // ==========================================
+        // REAL SUPABASE SIGN IN
+        // ==========================================
+        const { data, error: signInError } = await supabase.auth.signInWithPassword({
+          email: trimmedEmail,
+          password,
+        })
+
+        if (signInError) {
+          if (signInError.message.toLowerCase().includes('invalid login credentials')) {
+            setError('Invalid email or password. Please verify your credentials.')
+          } else if (signInError.message.toLowerCase().includes('email not confirmed')) {
+            setError('Your email has not been confirmed yet. Please verify your email via the confirmation link sent to your inbox.')
+          } else {
+            setError(signInError.message)
+          }
+          setIsLoading(false)
+          return
+        }
+
+        if (data?.session) {
+          setAuthToken(data.session.access_token)
+          if (onLoginSuccess) {
+            onLoginSuccess(data.user?.email || trimmedEmail)
+          }
+          navigate('/dashboard')
+          return
+        }
       }
-      navigate('/dashboard')
-    }, 600)
+    } catch (err: any) {
+      console.error('[VAANI Auth] Authentication error:', err)
+      setError(err?.message || 'Authentication request failed. Please check network connection.')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  const handleDemoLogin = () => {
-    setEmail('hackathon.evaluator@gnani.ai')
-    setPassword('DemoVault2026!')
+  const handleDemoLogin = async () => {
+    const demoEmail = 'hackathon.evaluator@gnani.ai'
+    const demoPassword = 'DemoVault2026!'
+    setEmail(demoEmail)
+    setPassword(demoPassword)
+    setError(null)
+    setSuccessNotice(null)
     setIsLoading(true)
+
+    try {
+      const { data, error: demoError } = await supabase.auth.signInWithPassword({
+        email: demoEmail,
+        password: demoPassword,
+      })
+      if (!demoError && data?.session) {
+        setAuthToken(data.session.access_token)
+        if (onLoginSuccess) {
+          onLoginSuccess(demoEmail)
+        }
+        navigate('/dashboard')
+        return
+      }
+    } catch {
+      // Fallback
+    }
+
+    // Fallback evaluator access
     setTimeout(() => {
       setIsLoading(false)
       if (onLoginSuccess) {
-        onLoginSuccess('hackathon.evaluator@gnani.ai')
+        onLoginSuccess(demoEmail)
       }
       navigate('/dashboard')
     }, 450)
@@ -123,6 +269,7 @@ export const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
                   onClick={() => {
                     setIsSignUp(false)
                     setError(null)
+                    setSuccessNotice(null)
                   }}
                   className={`flex-1 py-2 text-[10px] font-pixel uppercase transition-all block-pressable ${
                     !isSignUp
@@ -137,6 +284,7 @@ export const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
                   onClick={() => {
                     setIsSignUp(true)
                     setError(null)
+                    setSuccessNotice(null)
                   }}
                   className={`flex-1 py-2 text-[10px] font-pixel uppercase transition-all block-pressable ${
                     isSignUp
@@ -155,6 +303,14 @@ export const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
                   variant="error"
                   message={error}
                   onDismiss={() => setError(null)}
+                />
+              )}
+
+              {successNotice && (
+                <BlockNoticeBanner
+                  variant="success"
+                  message={successNotice}
+                  onDismiss={() => setSuccessNotice(null)}
                 />
               )}
 
@@ -180,7 +336,7 @@ export const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
                 />
 
                 <BlockInput
-                  label="VAULT PASSWORD"
+                  label="VAULT PASSWORD (MIN 6 CHARACTERS)"
                   type="password"
                   placeholder="••••••••••••"
                   value={password}
