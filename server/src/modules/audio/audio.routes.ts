@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express'
 import { z } from 'zod'
 import { requireAuth } from '../../middleware/auth.js'
 import { validateParams } from '../../middleware/validate.js'
-import { mockDb, AudioAssetRecord } from '../../db/repository.js'
+import { dbRepo } from '../../db/repository.js'
 import { StorageService } from '../storage/storage.service.js'
 
 export const audioRouter = Router()
@@ -15,12 +15,9 @@ const idParamSchema = z.object({
  * GET /api/audio
  * Lists all audio assets owned by the authenticated user.
  */
-audioRouter.get('/', requireAuth, (req: Request, res: Response) => {
+audioRouter.get('/', requireAuth, async (req: Request, res: Response) => {
   const userId = req.user!.id
-
-  const userAudios = Array.from(mockDb.audioAssets.values()).filter(
-    (a) => a.user_id === userId && a.deleted_at === null
-  )
+  const userAudios = await dbRepo.getAudioAssets(userId)
 
   res.json({
     assets: userAudios,
@@ -37,7 +34,7 @@ audioRouter.get('/:id/url', requireAuth, validateParams(idParamSchema), async (r
   const userId = req.user!.id
   const assetId = req.params.id
 
-  const asset = mockDb.audioAssets.get(assetId)
+  const asset = await dbRepo.getAudioAsset(assetId, userId)
 
   if (!asset || asset.deleted_at !== null) {
     res.status(404).json({
@@ -87,7 +84,7 @@ audioRouter.delete('/:id', requireAuth, validateParams(idParamSchema), async (re
   const userId = req.user!.id
   const assetId = req.params.id
 
-  const asset = mockDb.audioAssets.get(assetId)
+  const asset = await dbRepo.getAudioAsset(assetId, userId)
 
   if (!asset || asset.deleted_at !== null) {
     res.status(404).json({
@@ -109,8 +106,8 @@ audioRouter.delete('/:id', requireAuth, validateParams(idParamSchema), async (re
   // Delete from storage
   await StorageService.deleteObject('generated-audio', asset.object_key, userId)
 
-  // Mark deleted
-  asset.deleted_at = new Date().toISOString()
+  // Mark deleted in repository
+  await dbRepo.deleteAudioAsset(assetId, userId)
 
   res.json({
     message: 'Audio asset and private storage file deleted successfully.',

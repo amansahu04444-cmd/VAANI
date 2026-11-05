@@ -1,9 +1,10 @@
 import { Router, Request, Response } from 'express'
 import { z } from 'zod'
+import crypto from 'crypto'
 import { requireAuth } from '../../middleware/auth.js'
 import { validateBody } from '../../middleware/validate.js'
 import { rateLimiter } from '../../middleware/rateLimit.js'
-import { mockDb, VoiceProfileRecord } from '../../db/repository.js'
+import { dbRepo, isUuid, VoiceProfileRecord } from '../../db/repository.js'
 
 export const voiceRouter = Router()
 
@@ -21,12 +22,9 @@ const enrollSchema = z.object({
  * GET /api/voice/me
  * Retrieves current user's voice profile. Strictly scoped to authenticated user ID.
  */
-voiceRouter.get('/me', requireAuth, (req: Request, res: Response) => {
+voiceRouter.get('/me', requireAuth, async (req: Request, res: Response) => {
   const userId = req.user!.id
-
-  const profile = Array.from(mockDb.voiceProfiles.values()).find(
-    (vp) => vp.user_id === userId && vp.deleted_at === null
-  )
+  const profile = await dbRepo.getVoiceProfile(userId)
 
   if (!profile) {
     res.status(404).json({
@@ -61,69 +59,66 @@ voiceRouter.post(
   requireAuth,
   rateLimiter({ windowMs: 10 * 60 * 1000, maxRequests: 5, keyPrefix: 'voice_enroll' }),
   validateBody(enrollSchema),
-  (req: Request, res: Response) => {
-  const userId = req.user!.id
-  const { consentVersion, enrollmentLanguage, sampleDurationSec, sampleObjectKey } = req.body
+  async (req: Request, res: Response) => {
+    const userId = req.user!.id
+    const { consentVersion, enrollmentLanguage, sampleDurationSec, sampleObjectKey } = req.body
 
-  // Record DPDP Consent Audit Event
-  const eventId = `evt-${Date.now()}`
-  mockDb.consentEvents.set(eventId, {
-    id: eventId,
-    user_id: userId,
-    event_type: 'granted',
-    consent_version: consentVersion,
-    accepted_at: new Date().toISOString(),
-    revoked_at: null,
-    details: { ip: req.ip, userAgent: req.headers['user-agent'] },
-  })
+    const eventId = isUuid(userId) ? crypto.randomUUID() : `evt-${Date.now()}`
 
-  // Create or update voice profile
-  const existing = Array.from(mockDb.voiceProfiles.values()).find(
-    (vp) => vp.user_id === userId && vp.deleted_at === null
-  )
+    // Record DPDP Consent Audit Event
+    await dbRepo.recordConsentEvent({
+      id: eventId,
+      user_id: userId,
+      event_type: 'granted',
+      consent_version: consentVersion,
+      accepted_at: new Date().toISOString(),
+      revoked_at: null,
+      details: { ip: req.ip, userAgent: req.headers['user-agent'] },
+    })
 
-  const profileId = existing?.id || `vp-${Date.now()}`
-  const profileRecord: VoiceProfileRecord = {
-    id: profileId,
-    user_id: userId, // Enforce authenticated user ownership
-    provider: 'gnani',
-    provider_voice_ref: 'enc_embedding_vector_sample',
-    status: 'ready',
-    enrollment_language: enrollmentLanguage,
-    supported_languages: ['hi-IN', 'en-IN', 'auto', 'ta-IN', 'te-IN'],
-    sample_object_key: sampleObjectKey || `${userId}/sample.wav`,
-    sample_duration_sec: sampleDurationSec || 12.0,
-    consent_version: consentVersion,
-    consented_at: new Date().toISOString(),
-    deleted_at: null,
-    created_at: existing?.created_at || new Date().toISOString(),
+    // Create or update voice profile
+    const existing = await dbRepo.getVoiceProfile(userId)
+    const profileId = existing?.id || (isUuid(userId) ? crypto.randomUUID() : `vp-${Date.now()}`)
+
+    const profileRecord: VoiceProfileRecord = {
+      id: profileId,
+      user_id: userId, // Enforce authenticated user ownership
+      provider: 'gnani',
+      provider_voice_ref: 'enc_embedding_vector_sample',
+      status: 'ready',
+      enrollment_language: enrollmentLanguage,
+      supported_languages: ['hi-IN', 'en-IN', 'auto', 'ta-IN', 'te-IN'],
+      sample_object_key: sampleObjectKey || `${userId}/sample.wav`,
+      sample_duration_sec: sampleDurationSec || 12.0,
+      consent_version: consentVersion,
+      consented_at: new Date().toISOString(),
+      deleted_at: null,
+      created_at: existing?.created_at || new Date().toISOString(),
+    }
+
+    await dbRepo.saveVoiceProfile(profileRecord)
+
+    res.status(201).json({
+      message: 'Voice profile enrolled successfully with verified consent.',
+      profile: {
+        id: profileRecord.id,
+        status: profileRecord.status,
+        supportedLanguages: profileRecord.supported_languages,
+        consentedAt: profileRecord.consented_at,
+      },
+    })
   }
-
-  mockDb.voiceProfiles.set(profileId, profileRecord)
-
-  res.status(201).json({
-    message: 'Voice profile enrolled successfully with verified consent.',
-    profile: {
-      id: profileRecord.id,
-      status: profileRecord.status,
-      supportedLanguages: profileRecord.supported_languages,
-      consentedAt: profileRecord.consented_at,
-    },
-  })
-})
+)
 
 /**
  * DELETE /api/voice/me
  * Revokes consent and permanently deletes the voice profile.
  */
-voiceRouter.delete('/me', requireAuth, (req: Request, res: Response) => {
+voiceRouter.delete('/me', requireAuth, async (req: Request, res: Response) => {
   const userId = req.user!.id
+  const existing = await dbRepo.getVoiceProfile(userId)
 
-  const profile = Array.from(mockDb.voiceProfiles.values()).find(
-    (vp) => vp.user_id === userId && vp.deleted_at === null
-  )
-
-  if (!profile) {
+  if (!existing) {
     res.status(404).json({
       error: 'VOICE_PROFILE_NOT_FOUND',
       message: 'No active voice profile found to delete.',
@@ -131,26 +126,23 @@ voiceRouter.delete('/me', requireAuth, (req: Request, res: Response) => {
     return
   }
 
-  // Soft delete / purge profile
-  profile.deleted_at = new Date().toISOString()
-  profile.status = 'revoked'
-  profile.provider_voice_ref = null
+  const deletedAt = await dbRepo.deleteVoiceProfile(userId)
 
   // Record DPDP Consent Revocation Audit Event
-  const eventId = `evt-${Date.now()}`
-  mockDb.consentEvents.set(eventId, {
+  const eventId = isUuid(userId) ? crypto.randomUUID() : `evt-${Date.now()}`
+  await dbRepo.recordConsentEvent({
     id: eventId,
     user_id: userId,
     event_type: 'revoked',
-    consent_version: profile.consent_version,
-    accepted_at: profile.consented_at,
-    revoked_at: new Date().toISOString(),
+    consent_version: existing.consent_version,
+    accepted_at: existing.consented_at,
+    revoked_at: deletedAt || new Date().toISOString(),
     details: { reason: 'User requested irrevocable deletion' },
   })
 
   res.json({
     message: 'Voice profile revoked and speaker embedding permanently deleted.',
-    deletedAt: profile.deleted_at,
+    deletedAt,
   })
 })
 

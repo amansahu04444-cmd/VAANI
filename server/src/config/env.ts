@@ -7,9 +7,9 @@ const envSchema = z.object({
   PORT: z.coerce.number().default(5000),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   CLIENT_ORIGIN: z.string().default('http://localhost:5173'),
-  SUPABASE_URL: z.string().url().default('https://mock-vaani.supabase.co'),
-  SUPABASE_ANON_KEY: z.string().default('mock-anon-key-for-development'),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().optional().default('mock-service-role-key'),
+  SUPABASE_URL: z.string().url('SUPABASE_URL must be a valid URL'),
+  SUPABASE_ANON_KEY: z.string().min(1, 'SUPABASE_ANON_KEY is required'),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, 'SUPABASE_SERVICE_ROLE_KEY is required'),
   SUPABASE_JWT_SECRET: z.string().default('vaani-test-jwt-secret-minimum-32-characters-long'),
   STORAGE_SIGNED_URL_EXPIRY_SECONDS: z.coerce.number().default(900), // 15 minutes
   GNANI_API_KEY: z.string().optional(),
@@ -19,4 +19,25 @@ const envSchema = z.object({
 })
 
 export const config = envSchema.parse(process.env)
+
+/**
+ * Sanitized configuration check for startup logging.
+ * NEVER prints secret tokens or raw keys.
+ */
+export function validateSupabaseConfig(): {
+  isValid: boolean
+  urlHost: string
+  hasAnonKey: boolean
+  hasServiceRoleKey: boolean
+  hasJwtSecret: boolean
+} {
+  const urlObj = new URL(config.SUPABASE_URL)
+  return {
+    isValid: Boolean(config.SUPABASE_URL && config.SUPABASE_ANON_KEY && config.SUPABASE_SERVICE_ROLE_KEY),
+    urlHost: urlObj.hostname,
+    hasAnonKey: Boolean(config.SUPABASE_ANON_KEY && config.SUPABASE_ANON_KEY.length > 20),
+    hasServiceRoleKey: Boolean(config.SUPABASE_SERVICE_ROLE_KEY && config.SUPABASE_SERVICE_ROLE_KEY.length > 20),
+    hasJwtSecret: Boolean(config.SUPABASE_JWT_SECRET),
+  }
+}
 

@@ -2,6 +2,7 @@ import express, { Request, Response, NextFunction } from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
 import { config } from './config/env.js'
+import { checkSupabaseHealth } from './db/supabase.js'
 import { authRouter } from './modules/auth/auth.routes.js'
 import { voiceRouter } from './modules/voice/voice.routes.js'
 import { audioRouter } from './modules/audio/audio.routes.js'
@@ -19,15 +20,21 @@ app.use(
 )
 app.use(express.json({ limit: '2mb' }))
 
-// Health check endpoint
-app.get('/api/health', (_req: Request, res: Response) => {
-  res.json({
-    status: 'ok',
+// Health check endpoints (GET /health and GET /api/health)
+const healthHandler = async (_req: Request, res: Response) => {
+  const supabase = await checkSupabaseHealth()
+  const isHealthy = supabase.status === 'healthy'
+  res.status(isHealthy ? 200 : 503).json({
+    status: isHealthy ? 'ok' : 'degraded',
     service: 'VAANI Speech Studio API',
     version: '1.0.0',
     timestamp: new Date().toISOString(),
+    supabase,
   })
-})
+}
+
+app.get('/health', healthHandler)
+app.get('/api/health', healthHandler)
 
 // Feature routes
 app.use('/api/auth', authRouter)

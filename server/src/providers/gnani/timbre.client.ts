@@ -10,8 +10,8 @@ export class GnaniTimbreClient {
   private readonly apiKey: string | undefined
 
   constructor(apiKey?: string, baseUrl?: string) {
-    this.apiKey = apiKey || process.env.GNANI_API_KEY
-    this.baseUrl = baseUrl || process.env.GNANI_API_BASE_URL || 'https://api.vachana.ai'
+    this.apiKey = apiKey !== undefined ? apiKey : process.env.GNANI_API_KEY
+    this.baseUrl = baseUrl !== undefined && baseUrl !== '' ? baseUrl : (process.env.GNANI_API_BASE_URL || 'https://api.vachana.ai')
   }
 
   /**

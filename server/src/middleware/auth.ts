@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express'
 import jwt from 'jsonwebtoken'
 import { config } from '../config/env.js'
-import { createUserClient } from '../db/supabase.js'
+import { supabaseAnon, createUserClient } from '../db/supabase.js'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 export interface AuthenticatedUser {
@@ -21,10 +21,16 @@ declare global {
 
 /**
  * Authentication Middleware:
- * Validates Supabase JWT, extracts authenticated user identity,
- * and instantiates a user-scoped database client ensuring strict RLS.
+ * Verifies Supabase access tokens server-side using supabase.auth.getUser(token).
+ * Extracts authenticated user identity, binds req.user.id,
+ * and instantiates a user-scoped database client ensuring strict PostgreSQL RLS.
+ * Never trusts user IDs supplied directly by the frontend.
  */
-export function requireAuth(req: Request, res: Response, next: NextFunction): void {
+export async function requireAuth(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   const authHeader = req.headers.authorization
 
   if (!authHeader) {
@@ -47,41 +53,69 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
   const token = parts[1]
 
   try {
-    // Verify JWT signature with Supabase JWT secret
-    const decoded = jwt.verify(token, config.SUPABASE_JWT_SECRET) as jwt.JwtPayload
+    let authenticatedUser: AuthenticatedUser | null = null
 
-    const userId = decoded.sub || decoded.id
-    if (!userId || typeof userId !== 'string') {
+    // 1. Fast local verification: Check if token is signed with SUPABASE_JWT_SECRET
+    if (config.SUPABASE_JWT_SECRET) {
+      try {
+        const decoded = jwt.verify(token, config.SUPABASE_JWT_SECRET) as jwt.JwtPayload
+        const userId = decoded.sub || decoded.id
+        if (userId && typeof userId === 'string') {
+          authenticatedUser = {
+            id: userId,
+            email: decoded.email || 'user@vaani.ai',
+            role: decoded.role || 'authenticated',
+          }
+        }
+      } catch (jwtErr: any) {
+        if (jwtErr.name === 'TokenExpiredError') {
+          res.status(401).json({
+            error: 'TOKEN_EXPIRED',
+            message: 'Authentication token has expired. Please refresh your session.',
+          })
+          return
+        }
+        // If signature mismatch, token might be an asymmetric Supabase token; fall through to getUser
+      }
+    }
+
+    // 2. Server-side Supabase Auth verification:
+    // Verify token directly against Supabase Auth service using supabase.auth.getUser(token)
+    if (!authenticatedUser) {
+      try {
+        const { data, error } = await supabaseAnon.auth.getUser(token)
+        if (!error && data?.user?.id) {
+          authenticatedUser = {
+            id: data.user.id,
+            email: data.user.email || 'user@vaani.ai',
+            role: data.user.role || 'authenticated',
+          }
+        }
+      } catch {
+        // Supabase Auth unreachable or network failure
+      }
+    }
+
+    // If neither local secret nor Supabase Auth verified the token, reject
+    if (!authenticatedUser) {
       res.status(401).json({
         error: 'UNAUTHORIZED',
-        message: 'Invalid token claims: missing subject identifier (sub).',
+        message: 'Invalid or forged authentication token.',
       })
       return
     }
 
-    req.user = {
-      id: userId,
-      email: decoded.email || 'user@vaani.ai',
-      role: decoded.role || 'authenticated',
-    }
+    // Bind securely extracted user identity
+    req.user = authenticatedUser
 
     // Attach RLS-scoped Supabase client
     req.userClient = createUserClient(token)
 
     next()
   } catch (err: any) {
-    if (err.name === 'TokenExpiredError') {
-      res.status(401).json({
-        error: 'TOKEN_EXPIRED',
-        message: 'Authentication token has expired. Please refresh your session.',
-      })
-      return
-    }
-
     res.status(401).json({
       error: 'UNAUTHORIZED',
-      message: 'Invalid or forged authentication token.',
+      message: err.message || 'Authentication failed: unable to verify credentials.',
     })
   }
 }
-

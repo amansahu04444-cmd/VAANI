@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express'
 import { requireAuth } from '../../middleware/auth.js'
-import { mockDb } from '../../db/repository.js'
+import { dbRepo } from '../../db/repository.js'
 
 export const authRouter = Router()
 
@@ -8,9 +8,9 @@ export const authRouter = Router()
  * GET /api/auth/me
  * Returns authenticated user profile scoped to JWT.
  */
-authRouter.get('/me', requireAuth, (req: Request, res: Response) => {
+authRouter.get('/me', requireAuth, async (req: Request, res: Response) => {
   const userId = req.user!.id
-  const profile = mockDb.profiles.get(userId) || {
+  const profile = (await dbRepo.getProfile(userId)) || {
     id: userId,
     email: req.user!.email,
     display_name: 'VAANI Studio User',
