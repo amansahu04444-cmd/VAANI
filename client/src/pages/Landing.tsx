@@ -6,6 +6,7 @@ import { VoxelCard, CardHeader, CardTitle, CardDescription } from '../components
 import { BlockBadge } from '../components/ui/BlockBadge'
 import { VoxelAudioPlayer } from '../components/ui/VoxelAudioPlayer'
 import { ImmersiveHeroBackground } from '../components/effects/ImmersiveHeroBackground'
+import { CinematicTextDisintegration } from '../components/effects/CinematicTextDisintegration'
 import { CubeIllustration } from '../components/ui/CubeIllustration'
 import { PixelDivider } from '../components/ui/PixelDivider'
 import { SUPPORTED_LANGUAGES, DEMO_SCRIPTS } from '../lib/constants'
@@ -28,13 +29,8 @@ export const Landing: React.FC = () => {
             <span>POWERED BY GNANI AI TIMBRE & VACHANA SPEECH ARCHITECTURE</span>
           </div>
 
-          {/* 2. Pixel Headline */}
-          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-pixel uppercase tracking-wide text-voxel-cloud leading-tight animate-hero-fade [animation-delay:700ms] drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
-            YOUR VOICE. YOUR WORDS.{' '}
-            <span className="text-voxel-grass drop-shadow-[2px_2px_0px_#1D4427]">
-              EVERY LANGUAGE.
-            </span>
-          </h1>
+          {/* 2. Cinematic Pixel Disintegrating Headline */}
+          <CinematicTextDisintegration />
 
           {/* 3. Readable Subtitle with enhanced contrast */}
           <p className="text-sm sm:text-base text-[#D4D8DC] sm:text-voxel-stone-light max-w-2xl mx-auto leading-relaxed font-sans animate-hero-fade [animation-delay:900ms] drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
