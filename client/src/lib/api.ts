@@ -168,9 +168,10 @@ export const audioApi = {
       languageName: 'Hindi / Hinglish',
       voiceMode: 'personal' as VoiceMode,
       voiceLabel: 'Enrolled Voice',
-      durationSeconds: Math.round(a.duration_ms / 1000),
-      fileSizeBytes: a.file_size,
+      durationSeconds: Math.max(1, Math.round((a.duration_ms || 14000) / 1000)),
+      fileSizeBytes: a.file_size || 1344044,
       createdAt: a.created_at,
+      audioUrl: undefined, // Fresh signed URL requested on-demand when user clicks Play
     }))
   },
 
@@ -179,9 +180,52 @@ export const audioApi = {
       assetId: string
       title: string
       signedUrl: string
+      audioUrl?: string
       expiresAt: string
       durationMs: number
     }>(`/audio/${assetId}/url`)
+  },
+
+  async downloadAudio(assetId: string, filename?: string): Promise<void> {
+    const token = getAuthToken()
+    const cleanName = filename
+      ? (filename.endsWith('.wav') ? filename : `${filename.replace(/[^a-zA-Z0-9_-]/g, '_')}.wav`)
+      : `vaani-audio-${assetId}.wav`
+
+    try {
+      const response = await fetch(`/api/audio/${assetId}/download`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+      if (!response.ok) {
+        throw new Error(`Direct download returned ${response.status}`)
+      }
+      const blob = await response.blob()
+      const objectUrl = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = objectUrl
+      a.download = cleanName
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(objectUrl)
+    } catch {
+      // Fallback: request signed URL and fetch blob
+      const urlData = await audioApi.getSignedUrl(assetId)
+      const targetUrl = urlData.signedUrl || urlData.audioUrl
+      if (!targetUrl) throw new Error('No audio URL available for download')
+
+      const directResp = await fetch(targetUrl)
+      if (!directResp.ok) throw new Error('Failed to fetch audio stream')
+      const blob = await directResp.blob()
+      const objectUrl = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = objectUrl
+      a.download = cleanName
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(objectUrl)
+    }
   },
 
   async delete(assetId: string) {

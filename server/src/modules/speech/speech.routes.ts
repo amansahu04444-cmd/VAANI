@@ -9,6 +9,7 @@ import { dbRepo, isUuid, AudioAssetRecord } from '../../db/repository.js'
 import { gnaniProvider } from '../../providers/gnani/index.js'
 import { SUPPORTED_LOCALES, SupportedLocale } from '../../providers/gnani/types.js'
 import { StorageService } from '../storage/storage.service.js'
+import { ensureValidWavBuffer, inspectAudioBuffer } from '../audio/audio.utils.js'
 
 export const speechRouter = Router()
 
@@ -151,12 +152,17 @@ speechRouter.post(
       }
     }
 
-    // 3. Upload audio buffer to private Supabase Storage bucket
+    // 3. Ensure valid browser-playable WAV header (repairs streaming 0xFFFFFFFF sizes)
+    const validWav = ensureValidWavBuffer(audioBytes)
+    const inspection = inspectAudioBuffer(validWav)
+    const exactDurationMs = inspection.durationMs > 0 ? inspection.durationMs : estimatedDuration * 1000
+
+    // 4. Upload audio buffer to private Supabase Storage bucket
     try {
       await StorageService.uploadAudio(
         'generated-audio',
         objectKey,
-        audioBytes,
+        validWav,
         'audio/wav',
         userId
       )
@@ -165,15 +171,15 @@ speechRouter.post(
       console.warn('[Storage Upload Warning]:', uploadErr?.message || uploadErr)
     }
 
-    // 4. Persist asset metadata into database
+    // 5. Persist asset metadata into database
     const audioAsset: AudioAssetRecord = {
       id: assetId,
       user_id: userId,
       speech_job_id: jobId,
       object_key: objectKey,
       mime_type: 'audio/wav',
-      file_size: audioBytes.length,
-      duration_ms: estimatedDuration * 1000,
+      file_size: validWav.length,
+      duration_ms: exactDurationMs,
       title: title || `${targetLanguage} Speech Output`,
       created_at: new Date().toISOString(),
       deleted_at: null,
@@ -181,7 +187,7 @@ speechRouter.post(
 
     await dbRepo.saveAudioAsset(audioAsset)
 
-    // 5. Generate signed playback URL (15-minute expiration)
+    // 6. Generate signed playback URL (15-minute expiration)
     const { signedUrl, expiresAt } = await StorageService.getSignedUrl(
       'generated-audio',
       objectKey,
@@ -199,8 +205,9 @@ speechRouter.post(
         languageCode: targetLanguage,
         voiceMode,
         voiceLabel,
-        durationSeconds: estimatedDuration,
+        durationSeconds: Math.max(1, Math.round(exactDurationMs / 1000)),
         fileSizeBytes: audioAsset.file_size,
+        audioUrl: signedUrl,
         signedUrl,
         expiresAt,
         createdAt: audioAsset.created_at,

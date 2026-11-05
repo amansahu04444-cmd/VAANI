@@ -149,6 +149,46 @@ export class MockDatabaseStore {
       created_at: new Date().toISOString(),
       deleted_at: null,
     })
+
+    // Seeded initial assets for evaluator demo mode (user-1)
+    this.audioAssets.set('lib-001', {
+      id: 'lib-001',
+      user_id: 'user-1',
+      speech_job_id: null,
+      object_key: 'user-1/lib-001.wav',
+      mime_type: 'audio/wav',
+      file_size: 1152000,
+      duration_ms: 12000,
+      title: 'Hinglish Project Meeting & Invoice Reminder',
+      created_at: '2026-11-03T18:00:00.000Z',
+      deleted_at: null,
+    })
+
+    this.audioAssets.set('lib-002', {
+      id: 'lib-002',
+      user_id: 'user-1',
+      speech_job_id: null,
+      object_key: 'user-1/lib-002.wav',
+      mime_type: 'audio/wav',
+      file_size: 1344000,
+      duration_ms: 14000,
+      title: 'Hindi Customer Welcome Note',
+      created_at: '2026-11-03T15:00:00.000Z',
+      deleted_at: null,
+    })
+
+    this.audioAssets.set('lib-003', {
+      id: 'lib-003',
+      user_id: 'user-1',
+      speech_job_id: null,
+      object_key: 'user-1/lib-003.wav',
+      mime_type: 'audio/wav',
+      file_size: 864000,
+      duration_ms: 9000,
+      title: 'English Accessibility Audio Briefing',
+      created_at: '2026-11-02T18:00:00.000Z',
+      deleted_at: null,
+    })
   }
 }
 

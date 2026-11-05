@@ -113,3 +113,4 @@ Test Files  9 passed (9)
    - Test user cleaned up.
 5. **Duplicate Email Rejection:** Attempting duplicate signup returns `409 Conflict`.
 6. **Linter & Build:** `oxlint` 0 errors; full Vite & TypeScript build passed cleanly.
+

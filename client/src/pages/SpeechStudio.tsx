@@ -13,7 +13,7 @@ import { VoiceCore } from '../components/ui/VoiceCore'
 import { BlockProgress } from '../components/ui/BlockProgress'
 import { SUPPORTED_LANGUAGES, STANDARD_VOICES, DEMO_SCRIPTS } from '../lib/constants'
 import type { VoiceMode, AudioAsset } from '../types'
-import { speechApi } from '../lib/api'
+import { speechApi, audioApi } from '../lib/api'
 import { useAudioEngine } from '../context/AudioContext'
 
 export interface SpeechStudioProps {
@@ -425,12 +425,14 @@ export const SpeechStudio: React.FC<SpeechStudioProps> = ({
 
             {/* Voxel Audio Player */}
             <VoxelAudioPlayer
+              assetId={generatedAudio.id}
               title={generatedAudio.title}
               voiceLabel={generatedAudio.voiceLabel}
               languageName={generatedAudio.languageName}
               durationSeconds={generatedAudio.durationSeconds}
               voiceMode={generatedAudio.voiceMode}
               audioUrl={generatedAudio.audioUrl}
+              onRequestSignedUrl={(id) => audioApi.getSignedUrl(id)}
             />
           </VoxelCard>
         </section>

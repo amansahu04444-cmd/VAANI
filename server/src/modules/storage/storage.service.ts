@@ -114,7 +114,8 @@ export class StorageService {
   /**
    * Generates a short-lived signed URL for audio playback or download.
    * STRICT SECURITY ENFORCEMENT:
-   * Validates that the requested objectKey belongs to the authenticated userId.
+   * 1. Validates that the requested objectKey belongs to the authenticated userId.
+   * 2. Verifies the physical object exists in the private storage bucket.
    */
   public static async getSignedUrl(
     bucket: PrivateBucket,
@@ -127,12 +128,47 @@ export class StorageService {
 
     // 2. Request signed URL from Supabase private storage
     try {
+      // In live production/dev mode, verify existence before issuing signed URL
+      if (config.NODE_ENV !== 'test') {
+        const parts = objectKey.split('/')
+        const folder = parts.length > 1 ? parts.slice(0, -1).join('/') : ''
+        const filename = parts[parts.length - 1]
+
+        const { data: files, error: listError } = await supabaseAdmin.storage
+          .from(bucket)
+          .list(folder, { search: filename })
+
+        const fileExists = !listError && files && files.some((f) => f.name === filename)
+        if (!fileExists) {
+          throw new Error(`STORAGE_OBJECT_NOT_FOUND: Audio file "${objectKey}" not found in storage bucket "${bucket}".`)
+        }
+      }
+
       const { data, error } = await supabaseAdmin.storage
         .from(bucket)
         .createSignedUrl(objectKey, expiresInSeconds)
 
       if (error || !data?.signedUrl) {
-        // Fallback for isolated unit/integration tests without active cloud credentials
+        if (config.NODE_ENV === 'test') {
+          // Fallback for isolated unit/integration tests without active cloud credentials
+          const mockSignature = Buffer.from(
+            `${objectKey}:${authenticatedUserId}:${Date.now() + expiresInSeconds * 1000}`
+          ).toString('base64url')
+          const expiresAt = new Date(Date.now() + expiresInSeconds * 1000).toISOString()
+          return {
+            signedUrl: `${config.SUPABASE_URL}/storage/v1/object/sign/${bucket}/${objectKey}?token=${mockSignature}`,
+            expiresAt,
+          }
+        }
+        throw new Error(error?.message || 'Failed to create signed playback URL.')
+      }
+
+      return {
+        signedUrl: data.signedUrl,
+        expiresAt: new Date(Date.now() + expiresInSeconds * 1000).toISOString(),
+      }
+    } catch (err: any) {
+      if (config.NODE_ENV === 'test') {
         const mockSignature = Buffer.from(
           `${objectKey}:${authenticatedUserId}:${Date.now() + expiresInSeconds * 1000}`
         ).toString('base64url')
@@ -142,20 +178,29 @@ export class StorageService {
           expiresAt,
         }
       }
+      throw err
+    }
+  }
 
-      return {
-        signedUrl: data.signedUrl,
-        expiresAt: new Date(Date.now() + expiresInSeconds * 1000).toISOString(),
-      }
-    } catch {
-      const mockSignature = Buffer.from(
-        `${objectKey}:${authenticatedUserId}:${Date.now() + expiresInSeconds * 1000}`
-      ).toString('base64url')
-      const expiresAt = new Date(Date.now() + expiresInSeconds * 1000).toISOString()
-      return {
-        signedUrl: `${config.SUPABASE_URL}/storage/v1/object/sign/${bucket}/${objectKey}?token=${mockSignature}`,
-        expiresAt,
-      }
+  /**
+   * Downloads an audio object buffer from private Supabase Storage.
+   */
+  public static async downloadObject(
+    bucket: PrivateBucket,
+    objectKey: string,
+    authenticatedUserId: string
+  ): Promise<{ buffer: Buffer; contentType: string }> {
+    this.validatePathOwnership(bucket, objectKey, authenticatedUserId)
+
+    const { data, error } = await supabaseAdmin.storage.from(bucket).download(objectKey)
+    if (error || !data) {
+      throw new Error(`STORAGE_DOWNLOAD_FAILED: ${error?.message || 'Audio object could not be retrieved.'}`)
+    }
+
+    const arrayBuf = await data.arrayBuffer()
+    return {
+      buffer: Buffer.from(arrayBuf),
+      contentType: data.type || 'audio/wav',
     }
   }
 

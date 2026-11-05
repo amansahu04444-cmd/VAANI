@@ -62,6 +62,7 @@ export const AudioLibrary: React.FC<AudioLibraryProps> = ({
   initialAudios = DEFAULT_LIBRARY_AUDIOS,
 }) => {
   const [audios, setAudios] = useState<AudioAsset[]>(initialAudios)
+  const [activePlayingId, setActivePlayingId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [voiceModeFilter, setVoiceModeFilter] = useState<'all' | 'personal' | 'standard'>('all')
   const [selectedDeleteAudio, setSelectedDeleteAudio] = useState<AudioAsset | null>(null)
@@ -103,6 +104,9 @@ export const AudioLibrary: React.FC<AudioLibraryProps> = ({
       // Offline fallback
     }
 
+    if (selectedDeleteAudio.id === activePlayingId) {
+      setActivePlayingId(null)
+    }
     setAudios((prev) => prev.filter((a) => a.id !== selectedDeleteAudio.id))
     setIsDeleting(false)
     setSelectedDeleteAudio(null)
@@ -218,12 +222,16 @@ export const AudioLibrary: React.FC<AudioLibraryProps> = ({
 
               {/* Voxel Audio Player */}
               <VoxelAudioPlayer
+                assetId={audio.id}
                 title={audio.title}
                 voiceLabel={audio.voiceLabel}
                 languageName={audio.languageName}
                 durationSeconds={audio.durationSeconds}
                 voiceMode={audio.voiceMode}
                 audioUrl={audio.audioUrl}
+                isActive={activePlayingId === audio.id}
+                onStartPlayback={() => setActivePlayingId(audio.id)}
+                onRequestSignedUrl={(id) => audioApi.getSignedUrl(id)}
               />
             </VoxelCard>
           ))}
