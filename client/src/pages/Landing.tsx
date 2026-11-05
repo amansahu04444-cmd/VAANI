@@ -14,14 +14,14 @@ export const Landing: React.FC = () => {
   const [activeDemoScript, setActiveDemoScript] = useState(DEMO_SCRIPTS[0])
 
   return (
-    <div className="space-y-24 py-2 select-none">
-      {/* Full-Screen Immersive Ambient Audio Hero Section */}
-      <section className="relative -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 pt-10 sm:pt-14 pb-16 sm:pb-20 overflow-hidden">
-        {/* Full-Width Continuous Soundwave Environment Background */}
+    <div className="w-full select-none">
+      {/* Full-Screen Immersive Ambient Audio Hero Section - Begins Immediately Below Navbar */}
+      <section className="relative w-full pt-8 sm:pt-12 pb-14 sm:pb-18 px-4 sm:px-6 lg:px-8 overflow-hidden border-b-2 border-voxel-stone-dark/40">
+        {/* Full-Width Continuous Soundwave Environment Background (Lowest Layer: z-0) */}
         <AmbientSoundEnvironment />
 
-        {/* Hero Foreground Content */}
-        <div className="relative z-10 text-center max-w-4xl mx-auto space-y-8">
+        {/* Hero Foreground Content (Foreground Layer: z-10) */}
+        <div className="relative z-10 text-center max-w-4xl mx-auto space-y-7 sm:space-y-8">
           {/* 1. System Core Badge */}
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-[#171A1E]/90 backdrop-blur-sm border-2 border-voxel-grass text-voxel-grass text-xs font-pixel shadow-voxel-sm animate-hero-fade">
             <Sparkles className="w-3.5 h-3.5 animate-pulse text-voxel-gold" />
@@ -29,7 +29,7 @@ export const Landing: React.FC = () => {
           </div>
 
           {/* 2. Pixel Headline */}
-          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-pixel uppercase tracking-wide text-voxel-cloud leading-tight animate-hero-fade [animation-delay:120ms]">
+          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-pixel uppercase tracking-wide text-voxel-cloud leading-tight animate-hero-fade [animation-delay:120ms] drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
             YOUR VOICE. YOUR WORDS.{' '}
             <span className="text-voxel-grass drop-shadow-[2px_2px_0px_#1D4427]">
               EVERY LANGUAGE.
@@ -37,12 +37,12 @@ export const Landing: React.FC = () => {
           </h1>
 
           {/* 3. Readable Subtitle with enhanced contrast */}
-          <p className="text-sm sm:text-base text-voxel-stone-light max-w-2xl mx-auto leading-relaxed font-sans animate-hero-fade [animation-delay:220ms]">
+          <p className="text-sm sm:text-base text-[#D4D8DC] sm:text-voxel-stone-light max-w-2xl mx-auto leading-relaxed font-sans animate-hero-fade [animation-delay:220ms] drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
             Record a 10-second voice sample once. Prepare conversational scripts across Indian languages, synthesize speech with your authentic vocal timbre, and build a reusable private block library.
           </p>
 
-          {/* 4. 3D Block Action Buttons */}
-          <div className="flex flex-wrap items-center justify-center gap-4 pt-2 animate-hero-fade [animation-delay:320ms]">
+          {/* 4. 3D Block Action Buttons (Top Interactive Layer: z-20) */}
+          <div className="relative z-20 flex flex-wrap items-center justify-center gap-4 pt-2 animate-hero-fade [animation-delay:320ms]">
             <Link to="/studio">
               <BlockButton size="lg" variant="primary" rightIcon={<ArrowRight className="w-4 h-4" />}>
                 OPEN SPEECH STUDIO
@@ -73,7 +73,9 @@ export const Landing: React.FC = () => {
         </div>
       </section>
 
-      <PixelDivider color="grass" />
+      {/* Subsequent Landing Page Sections (Constrained Container: max-w-7xl) */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-24 pt-14 pb-20">
+        <PixelDivider color="grass" />
 
       {/* Interactive Voxel Jukebox Demo */}
       <section className="max-w-4xl mx-auto space-y-6">
@@ -93,11 +95,10 @@ export const Landing: React.FC = () => {
             <button
               key={idx}
               onClick={() => setActiveDemoScript(s)}
-              className={`px-3 py-2 text-xs font-pixel uppercase tracking-wide transition-all border-2 block-pressable ${
-                activeDemoScript.title === s.title
+              className={`px-3 py-2 text-xs font-pixel uppercase tracking-wide transition-all border-2 block-pressable ${activeDemoScript.title === s.title
                   ? 'bg-voxel-grass text-voxel-bedrock border-[#88D169] shadow-voxel-grass'
                   : 'bg-[#181B1E] text-voxel-cloud border-voxel-stone-dark hover:border-voxel-stone-light'
-              }`}
+                }`}
             >
               {s.title}
             </button>
@@ -117,8 +118,8 @@ export const Landing: React.FC = () => {
               activeDemoScript.lang === 'hi-IN'
                 ? 'Hindi (हिन्दी)'
                 : activeDemoScript.lang === 'en-IN'
-                ? 'Indian English'
-                : 'Hinglish (Code-mixed)'
+                  ? 'Indian English'
+                  : 'Hinglish (Code-mixed)'
             }
             durationSeconds={12}
           />
@@ -221,6 +222,7 @@ export const Landing: React.FC = () => {
           </BlockButton>
         </Link>
       </section>
+      </div>
     </div>
   )
 }
