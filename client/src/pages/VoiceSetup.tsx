@@ -13,6 +13,7 @@ import { PixelDivider } from '../components/ui/PixelDivider'
 import { VOICE_CONSENT_STATEMENT } from '../lib/constants'
 import type { EnrollmentStatus, VoiceEnrollmentState } from '../types'
 import { voiceApi } from '../lib/api'
+import { BrowserPcmRecorder, normalizeToWav } from '../lib/audioRecorder'
 
 export interface VoiceSetupProps {
   currentStatus?: VoiceEnrollmentState | EnrollmentStatus
@@ -50,9 +51,7 @@ export const VoiceSetup: React.FC<VoiceSetupProps> = ({
   const [apiNotice, setApiNotice] = useState<string | null>(null)
 
   const timerRef = useRef<NodeJS.Timeout | null>(null)
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
-  const audioChunksRef = useRef<Blob[]>([])
-  const streamRef = useRef<MediaStream | null>(null)
+  const pcmRecorderRef = useRef<BrowserPcmRecorder | null>(null)
   const audioElementRef = useRef<HTMLAudioElement | null>(null)
 
   useEffect(() => {
@@ -81,30 +80,34 @@ export const VoiceSetup: React.FC<VoiceSetupProps> = ({
       })
   }, [onStatusChange])
 
-  const stopRecording = useCallback(() => {
+  const stopRecording = useCallback(async () => {
     setIsRecording(false)
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+    if (pcmRecorderRef.current) {
       try {
-        mediaRecorderRef.current.stop()
-      } catch (err) {
-        console.warn('Error stopping MediaRecorder:', err)
-      }
-    }
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop())
-    }
+        const { blob, durationSec, base64 } = await pcmRecorderRef.current.stop()
+        pcmRecorderRef.current = null
 
-    setRecordDuration((currentDuration) => {
-      if (currentDuration < 5) {
-        setValidationError('Audio sample is too short. Gnani AI requires between 5 and 30 seconds of clean speech.')
-        setHasRecordedSample(false)
-        setAudioBase64(null)
-      } else {
-        setHasRecordedSample(true)
-        setValidationError(null)
+        setAudioMimeType('audio/wav')
+        const previewUrl = URL.createObjectURL(blob)
+        setAudioPreviewUrl(previewUrl)
+        setAudioBase64(base64)
+
+        if (durationSec < 5) {
+          setValidationError(
+            `Audio sample is too short (${durationSec}s). Gnani AI requires between 5 and 30 seconds of clean speech.`
+          )
+          setHasRecordedSample(false)
+        } else {
+          setRecordDuration(Math.min(30, durationSec))
+          setHasRecordedSample(true)
+          setValidationError(null)
+        }
+      } catch (err: any) {
+        console.warn('Error finalizing WAV audio recording:', err)
+        setValidationError('Failed to encode audio recording into 16kHz PCM WAV format.')
+        pcmRecorderRef.current = null
       }
-      return currentDuration
-    })
+    }
   }, [])
 
   // Timer logic for recording duration (up to 30s)
@@ -127,11 +130,11 @@ export const VoiceSetup: React.FC<VoiceSetupProps> = ({
     }
   }, [isRecording, stopRecording])
 
-  // Clean up audio preview URLs on unmount
+  // Clean up audio preview URLs and active recordings on unmount
   useEffect(() => {
     return () => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop())
+      if (pcmRecorderRef.current) {
+        pcmRecorderRef.current.cancel()
       }
       if (audioPreviewUrl) {
         URL.revokeObjectURL(audioPreviewUrl)
@@ -151,68 +154,13 @@ export const VoiceSetup: React.FC<VoiceSetupProps> = ({
       setAudioPreviewUrl(null)
     }
 
-    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
-      setValidationError('Microphone recording is not supported in this browser. Please upload an audio file.')
-      return
-    }
-
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          channelCount: 1,
-          sampleRate: 16000,
-          echoCancellation: true,
-          noiseSuppression: true,
-        },
-      })
-      streamRef.current = stream
-
-      let chosenMimeType = 'audio/webm'
-      if (typeof MediaRecorder !== 'undefined') {
-        if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
-          chosenMimeType = 'audio/webm;codecs=opus'
-        } else if (MediaRecorder.isTypeSupported('audio/webm')) {
-          chosenMimeType = 'audio/webm'
-        } else if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) {
-          chosenMimeType = 'audio/ogg;codecs=opus'
-        } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
-          chosenMimeType = 'audio/mp4'
-        }
-      }
-
-      const recorder = new MediaRecorder(stream, chosenMimeType ? { mimeType: chosenMimeType } : undefined)
-      mediaRecorderRef.current = recorder
-      audioChunksRef.current = []
-
-      recorder.ondataavailable = (event) => {
-        if (event.data && event.data.size > 0) {
-          audioChunksRef.current.push(event.data)
-        }
-      }
-
-      recorder.onstop = () => {
-        const finalType = recorder.mimeType || chosenMimeType || 'audio/wav'
-        const audioBlob = new Blob(audioChunksRef.current, { type: finalType })
-        setAudioMimeType(finalType)
-
-        const previewUrl = URL.createObjectURL(audioBlob)
-        setAudioPreviewUrl(previewUrl)
-
-        const reader = new FileReader()
-        reader.onloadend = () => {
-          const result = reader.result as string
-          setAudioBase64(result)
-        }
-        reader.readAsDataURL(audioBlob)
-
-        // Stop all tracks to turn off the microphone hardware light
-        stream.getTracks().forEach((track) => track.stop())
-      }
-
-      recorder.start(250)
+      const recorder = new BrowserPcmRecorder()
+      pcmRecorderRef.current = recorder
+      await recorder.start()
       setIsRecording(true)
     } catch (err: any) {
-      console.error('[VoiceSetup] MediaRecorder access failed:', err)
+      console.error('[VoiceSetup] In-browser WAV recorder access failed:', err)
       setValidationError(
         err.name === 'NotAllowedError'
           ? 'Microphone permission was denied. Please allow microphone access in your browser or upload an audio file.'
@@ -221,14 +169,25 @@ export const VoiceSetup: React.FC<VoiceSetupProps> = ({
     }
   }
 
-
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
     const lowerName = file.name.toLowerCase()
-    if (!lowerName.endsWith('.wav') && !lowerName.endsWith('.mp3') && !lowerName.endsWith('.ogg') && !lowerName.endsWith('.m4a')) {
+    if (lowerName.endsWith('.webm')) {
+      setValidationError(
+        'WebM format is unsupported by Gnani AI. Please record directly using the microphone button or upload a .wav, .mp3, or .m4a file.'
+      )
+      return
+    }
+
+    if (
+      !lowerName.endsWith('.wav') &&
+      !lowerName.endsWith('.mp3') &&
+      !lowerName.endsWith('.ogg') &&
+      !lowerName.endsWith('.m4a') &&
+      !lowerName.endsWith('.flac')
+    ) {
       setValidationError('Please upload a clean audio file in .wav, .mp3, .ogg, or .m4a format.')
       return
     }
@@ -240,42 +199,37 @@ export const VoiceSetup: React.FC<VoiceSetupProps> = ({
 
     setValidationError(null)
     setUploadedFileName(file.name)
-    setAudioMimeType(file.type || 'audio/wav')
+    setIsProcessing(true)
+    setProcessingStep('Normalizing audio sample to 16kHz Linear PCM WAV...')
 
-    if (audioPreviewUrl) {
-      URL.revokeObjectURL(audioPreviewUrl)
-    }
-    const previewUrl = URL.createObjectURL(file)
-    setAudioPreviewUrl(previewUrl)
+    try {
+      const { blob, durationSec, base64 } = await normalizeToWav(file, 16000)
+      setAudioMimeType('audio/wav')
 
-    // Inspect actual audio duration
-    const tempAudio = new Audio()
-    tempAudio.src = previewUrl
-    tempAudio.onloadedmetadata = () => {
-      const dur = Math.round(tempAudio.duration)
-      if (dur > 0 && isFinite(dur)) {
-        setRecordDuration(Math.min(dur, 30))
-        if (dur < 3) {
-          setValidationError('Audio file duration is too short (< 3s). Gnani AI requires at least 5 seconds of speech.')
-          setHasRecordedSample(false)
-          return
-        }
-      } else {
-        setRecordDuration(12)
+      if (audioPreviewUrl) {
+        URL.revokeObjectURL(audioPreviewUrl)
       }
-      setHasRecordedSample(true)
-    }
-    tempAudio.onerror = () => {
-      setRecordDuration(12)
-      setHasRecordedSample(true)
-    }
+      const previewUrl = URL.createObjectURL(blob)
+      setAudioPreviewUrl(previewUrl)
+      setAudioBase64(base64)
 
-    const reader = new FileReader()
-    reader.onloadend = () => {
-      const result = reader.result as string
-      setAudioBase64(result)
+      if (durationSec < 5) {
+        setValidationError(
+          `Audio file duration is too short (${durationSec}s). Gnani AI requires between 5 and 30 seconds of speech.`
+        )
+        setHasRecordedSample(false)
+      } else {
+        setRecordDuration(Math.min(30, durationSec))
+        setHasRecordedSample(true)
+      }
+    } catch (err: any) {
+      console.error('[VoiceSetup] Audio normalization error:', err)
+      setValidationError('Could not decode audio file. Please ensure it is a valid .wav, .mp3 or .m4a recording.')
+      setHasRecordedSample(false)
+    } finally {
+      setIsProcessing(false)
+      setProcessingStep('')
     }
-    reader.readAsDataURL(file)
   }
 
   const togglePlayPreview = () => {

@@ -22,3 +22,4 @@ export interface EvaluatedVoiceProfile {
   embeddingPayload: SpeakerEmbeddingTensor | null
   errorMessage: string | null
 }
+

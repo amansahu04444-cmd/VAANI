@@ -45,7 +45,7 @@ export function generateDeterministicWav(durationSeconds: number = 5, baseFreq: 
 
 export interface AudioInspectionResult {
   isValid: boolean
-  format: 'wav' | 'mp3' | 'ogg' | 'raw' | 'unknown'
+  format: 'wav' | 'mp3' | 'ogg' | 'webm' | 'flac' | 'm4a' | 'raw' | 'unknown'
   mimeType: string
   fileSize: number
   sampleRate: number
@@ -73,7 +73,28 @@ export function inspectAudioBuffer(buffer: Buffer): AudioInspectionResult {
     }
   }
 
-  // 1. Check RIFF / WAVE signature
+  // 1. Check WebM / Matroska EBML signature (0x1A 0x45 0xDF 0xA3)
+  const isWebm =
+    fileSize >= 4 &&
+    buffer[0] === 0x1a &&
+    buffer[1] === 0x45 &&
+    buffer[2] === 0xdf &&
+    buffer[3] === 0xa3
+
+  if (isWebm) {
+    return {
+      isValid: false,
+      format: 'webm',
+      mimeType: 'audio/webm',
+      fileSize,
+      sampleRate: 0,
+      channels: 0,
+      bitsPerSample: 0,
+      durationMs: 0,
+    }
+  }
+
+  // 2. Check RIFF / WAVE signature
   const isRiff = buffer.subarray(0, 4).toString('ascii') === 'RIFF'
   const isWave = fileSize >= 12 && buffer.subarray(8, 12).toString('ascii') === 'WAVE'
 
@@ -105,7 +126,7 @@ export function inspectAudioBuffer(buffer: Buffer): AudioInspectionResult {
     }
   }
 
-  // 2. Check MP3 signature (ID3 header or syncword 0xFFE0)
+  // 3. Check MP3 signature (ID3 header or syncword 0xFFE0)
   const isId3 = buffer.subarray(0, 3).toString('ascii') === 'ID3'
   const isMp3Sync = (buffer[0] === 0xff && (buffer[1] & 0xe0) === 0xe0)
   if (isId3 || isMp3Sync) {
@@ -121,7 +142,7 @@ export function inspectAudioBuffer(buffer: Buffer): AudioInspectionResult {
     }
   }
 
-  // 3. Check OGG signature
+  // 4. Check OGG signature
   if (buffer.subarray(0, 4).toString('ascii') === 'OggS') {
     return {
       isValid: true,
@@ -135,7 +156,35 @@ export function inspectAudioBuffer(buffer: Buffer): AudioInspectionResult {
     }
   }
 
-  // 4. Raw PCM (Linear16)
+  // 5. Check FLAC signature (fLaC)
+  if (buffer.subarray(0, 4).toString('ascii') === 'fLaC') {
+    return {
+      isValid: true,
+      format: 'flac',
+      mimeType: 'audio/flac',
+      fileSize,
+      sampleRate: 44100,
+      channels: 2,
+      bitsPerSample: 16,
+      durationMs: 0,
+    }
+  }
+
+  // 6. Check M4A / MP4 container (ftyp)
+  if (fileSize >= 8 && buffer.subarray(4, 8).toString('ascii') === 'ftyp') {
+    return {
+      isValid: true,
+      format: 'm4a',
+      mimeType: 'audio/mp4',
+      fileSize,
+      sampleRate: 44100,
+      channels: 2,
+      bitsPerSample: 16,
+      durationMs: 0,
+    }
+  }
+
+  // 7. Raw PCM (Linear16)
   const sampleRate = 48000
   const channels = 1
   const bitsPerSample = 16
@@ -156,9 +205,10 @@ export function inspectAudioBuffer(buffer: Buffer): AudioInspectionResult {
 
 /**
  * Ensures an audio buffer is a 100% valid, browser-playable RIFF WAV file.
+ * - If the buffer is WebM: throws an explicit error (never wrap WebM with a WAV header).
  * - If the buffer is RIFF/WAVE: repairs unfinalized 0xFFFFFFFF chunk sizes to exact length.
  * - If the buffer is raw PCM (no header): wraps it with standard 44-byte WAV header.
- * - If MP3/OGG: leaves as-is.
+ * - If MP3/OGG/FLAC/M4A: leaves as-is.
  */
 export function ensureValidWavBuffer(
   buffer: Buffer,
@@ -170,7 +220,21 @@ export function ensureValidWavBuffer(
     throw new Error('AUDIO_BUFFER_EMPTY: Cannot process empty audio buffer.')
   }
 
-  // 1. If buffer has RIFF / WAVE signature, fix unfinalized stream sizes
+  // 1. Explicitly reject WebM containers
+  const isWebm =
+    buffer.length >= 4 &&
+    buffer[0] === 0x1a &&
+    buffer[1] === 0x45 &&
+    buffer[2] === 0xdf &&
+    buffer[3] === 0xa3
+
+  if (isWebm) {
+    throw new Error(
+      'AUDIO_FORMAT_UNSUPPORTED: Buffer contains WebM audio container. Gnani AI requires uncompressed 16-bit PCM WAV or MP3 audio.'
+    )
+  }
+
+  // 2. If buffer has RIFF / WAVE signature, fix unfinalized stream sizes
   const isRiff = buffer.subarray(0, 4).toString('ascii') === 'RIFF'
   const isWave = buffer.length >= 12 && buffer.subarray(8, 12).toString('ascii') === 'WAVE'
 
@@ -195,15 +259,17 @@ export function ensureValidWavBuffer(
     return patched
   }
 
-  // 2. If buffer is MP3 or OGG, return as-is
+  // 3. If buffer is compressed container (MP3, OGG, FLAC, M4A), return as-is
   const isId3 = buffer.subarray(0, 3).toString('ascii') === 'ID3'
   const isMp3 = buffer[0] === 0xff && (buffer[1] & 0xe0) === 0xe0
   const isOgg = buffer.subarray(0, 4).toString('ascii') === 'OggS'
-  if (isId3 || isMp3 || isOgg) {
+  const isFlac = buffer.subarray(0, 4).toString('ascii') === 'fLaC'
+  const isM4a = buffer.length >= 8 && buffer.subarray(4, 8).toString('ascii') === 'ftyp'
+  if (isId3 || isMp3 || isOgg || isFlac || isM4a) {
     return buffer
   }
 
-  // 3. Raw PCM: prepend 44-byte WAV header
+  // 4. Raw PCM: prepend 44-byte WAV header
   const bytesPerSample = bitsPerSample / 8
   const dataSize = buffer.length
   const header = Buffer.alloc(44)

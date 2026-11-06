@@ -8,7 +8,7 @@ import { rateLimiter } from '../../middleware/rateLimit.js'
 import { dbRepo, isUuid, VoiceProfileRecord } from '../../db/repository.js'
 import { gnaniProvider } from '../../providers/gnani/index.js'
 import { StorageService } from '../storage/storage.service.js'
-import { ensureValidWavBuffer, generateDeterministicWav } from '../audio/audio.utils.js'
+import { ensureValidWavBuffer, generateDeterministicWav, inspectAudioBuffer } from '../audio/audio.utils.js'
 import { evaluateVoiceProfile, validateSpeakerEmbeddingTensor } from './voice.service.js'
 export { evaluateVoiceProfile, validateSpeakerEmbeddingTensor } from './voice.service.js'
 export * from './voice.types.js'
@@ -152,18 +152,52 @@ voiceRouter.post(
       }
     }
 
-    const durationSec = sampleDurationSec || (audioBuffer ? Math.max(5, Math.round(audioBuffer.length / 32000)) : 12)
+    // 4. Inspect audio buffer and reject unsupported formats (e.g. WebM) or samples that are too short
+    let validAudio = audioBuffer
+    if (audioBuffer) {
+      const inspection = inspectAudioBuffer(audioBuffer)
+      if (inspection.format === 'webm') {
+        res.status(400).json({
+          error: 'UNSUPPORTED_AUDIO_FORMAT',
+          status: 'EMBEDDING_FAILED',
+          enrollmentStatus: 'EMBEDDING_FAILED',
+          message:
+            'The uploaded audio format (WebM) is not supported by Gnani AI. Please record using the updated studio microphone (WAV) or upload a clean .wav file.',
+        })
+        return
+      }
+
+      if (inspection.format === 'wav' && inspection.durationMs > 0) {
+        const durSec = inspection.durationMs / 1000
+        if (durSec < 4.5) {
+          res.status(400).json({
+            error: 'AUDIO_TOO_SHORT',
+            status: 'EMBEDDING_FAILED',
+            enrollmentStatus: 'EMBEDDING_FAILED',
+            message: `Audio sample is too short (${durSec.toFixed(1)}s). Gnani AI requires between 5 and 30 seconds of clean speech.`,
+          })
+          return
+        }
+      }
+
+      try {
+        validAudio = ensureValidWavBuffer(audioBuffer, 16000)
+      } catch (normErr: any) {
+        console.warn('[Audio Normalization Warning]:', normErr.message)
+      }
+    }
+
+    const durationSec = sampleDurationSec || (validAudio ? Math.max(5, Math.round(validAudio.length / 32000)) : 12)
     const objectKey = `${userId}/voice-sample-${Date.now()}.wav`
 
-    // 4. Upload audio buffer to private Supabase Storage
-    if (audioBuffer) {
+    // 5. Upload audio buffer to private Supabase Storage
+    if (validAudio) {
       try {
-        const validAudio = ensureValidWavBuffer(audioBuffer, 16000)
         await StorageService.uploadAudio(
           'voice-samples',
           objectKey,
           validAudio,
-          mimeType || 'audio/wav',
+          'audio/wav',
           userId
         )
       } catch (uploadErr: any) {
@@ -171,14 +205,14 @@ voiceRouter.post(
       }
     }
 
-    // 5. Extract 768-dim speaker embedding tensor via Gnani AI Vachana
+    // 6. Extract 768-dim speaker embedding tensor via Gnani AI Vachana
     let embeddingResult: any = null
 
     const isMocked = Boolean((gnaniProvider.enrollVoice as any)?.mock)
     try {
-      if (audioBuffer && ((process.env.GNANI_API_KEY && config.NODE_ENV !== 'test') || isMocked)) {
+      if (validAudio && ((process.env.GNANI_API_KEY && config.NODE_ENV !== 'test') || isMocked)) {
         console.log(`[Voice Enrollment] Extracting speaker embedding tensor via Gnani Vachana for user: ${userId}`)
-        embeddingResult = await gnaniProvider.enrollVoice(audioBuffer, 'voice_sample.wav', mimeType || 'audio/wav')
+        embeddingResult = await gnaniProvider.enrollVoice(validAudio, 'reference_voice.wav', 'audio/wav')
       }
     } catch (enrollErr: any) {
       console.error('[Gnani Voice Enrollment Error]:', enrollErr?.message || enrollErr)

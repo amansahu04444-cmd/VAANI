@@ -181,3 +181,4 @@ npx vitest run server/src/__tests__/voice_embedding_e2e.test.ts
 - **Vitest:** 11 / 11 test suites passed (**88 / 88 unit & integration tests passed**).
 - **Client Linting:** Oxlint passed with **0 warnings and 0 errors** across all 56 client files.
 - **Production Builds:** Both Vite (`client:build`) and TypeScript (`server:build`) succeeded with code 0.
+

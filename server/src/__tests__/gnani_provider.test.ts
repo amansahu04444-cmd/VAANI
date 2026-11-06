@@ -130,10 +130,10 @@ describe('Gnani Timbre Provider Adapter & Contract Verification', () => {
         'https://mock.gnani.ai/api/v1/tts/inference',
         expect.objectContaining({
           method: 'POST',
-          headers: {
+          headers: expect.objectContaining({
             'Content-Type': 'application/json',
             'X-API-Key-ID': fakeApiKey,
-          },
+          }),
         })
       )
 

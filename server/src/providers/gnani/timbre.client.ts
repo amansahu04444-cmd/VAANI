@@ -44,6 +44,7 @@ export class GnaniTimbreClient {
         headers: {
           'Content-Type': 'application/json',
           'X-API-Key-ID': this.apiKey,
+          'X-Source': 'mcp',
         },
         body: JSON.stringify(validated),
         signal: controller.signal,

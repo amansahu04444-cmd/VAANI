@@ -1,5 +1,6 @@
 import { config } from '../../config/env.js'
 import { SpeakerEmbedding, SpeakerEmbeddingSchema } from './types.js'
+import { inspectAudioBuffer } from '../../modules/audio/audio.utils.js'
 
 export class GnaniVoiceEnrollmentAdapter {
   private readonly baseUrl: string
@@ -32,22 +33,40 @@ export class GnaniVoiceEnrollmentAdapter {
       )
     }
 
+    // 1. Audio format inspection & validation
+    const inspection = inspectAudioBuffer(audioBuffer)
+    if (inspection.format === 'webm') {
+      throw new Error(
+        'UNSUPPORTED_AUDIO_FORMAT: Gnani Voice Cloning requires PCM WAV, MP3, or OGG audio. WebM format is not accepted by the provider decoder.'
+      )
+    }
+
     const endpoint = `${this.baseUrl}/api/v1/tts/voice-clone/embeddings`
+
+    // Determine clean upload filename matching format
+    const cleanFileName = fileName.endsWith('.wav') || fileName.endsWith('.mp3')
+      ? fileName
+      : inspection.format === 'mp3'
+      ? 'reference_voice.mp3'
+      : 'reference_voice.wav'
+
+    const cleanMimeType = inspection.format === 'mp3' ? 'audio/mpeg' : 'audio/wav'
 
     // Prepare multipart/form-data with native Node 24 FormData & Blob
     // Official Gnani schema requires field name "audio_file"
     const formData = new FormData()
-    const blob = new Blob([audioBuffer], { type: mimeType })
-    formData.append('audio_file', blob, fileName)
+    const blob = new Blob([audioBuffer], { type: cleanMimeType })
+    formData.append('audio_file', blob, cleanFileName)
 
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 20000) // 20s timeout for audio analysis
+    const timeoutId = setTimeout(() => controller.abort(), 30000) // 30s timeout for audio analysis
 
     try {
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'X-API-Key-ID': this.apiKey,
+          'X-Source': 'mcp',
         },
         body: formData,
         signal: controller.signal,
@@ -57,12 +76,23 @@ export class GnaniVoiceEnrollmentAdapter {
 
       if (!response.ok) {
         const errorText = await response.text().catch(() => '')
+        let parsedMessage = ''
+        try {
+          const json = JSON.parse(errorText)
+          parsedMessage = json.message || json.detail || json.error || ''
+        } catch {}
+
         if (response.status === 404 || response.status === 403) {
           throw new Error(
-            `PROVIDER_CAPABILITY_UNAVAILABLE (${response.status}): Voice cloning embedding endpoint is not enabled or accessible with this participant API key tier. Details: ${errorText}`
+            `PROVIDER_CAPABILITY_UNAVAILABLE (${response.status}): Voice cloning embedding endpoint is not enabled or accessible with this participant API key tier. Details: ${parsedMessage || errorText}`
           )
         }
-        throw new Error(`GNANI_ENROLLMENT_ERROR (${response.status}): ${response.statusText} - ${errorText}`)
+        if (response.status === 500) {
+          throw new Error(
+            `GNANI_ENROLLMENT_ERROR (500): ${parsedMessage || 'We are facing technical difficulties. Please try again later.'}. Provider internal error processing audio embedding. Ensure audio is clean 16-bit PCM WAV (5-30s).`
+          )
+        }
+        throw new Error(`GNANI_ENROLLMENT_ERROR (${response.status}): ${response.statusText} - ${parsedMessage || errorText}`)
       }
 
       const json = (await response.json()) as any
@@ -74,7 +104,7 @@ export class GnaniVoiceEnrollmentAdapter {
     } catch (err: any) {
       clearTimeout(timeoutId)
       if (err.name === 'AbortError') {
-        throw new Error('GNANI_TIMEOUT: Voice embedding extraction timed out after 20 seconds.')
+        throw new Error('GNANI_TIMEOUT: Voice embedding extraction timed out after 30 seconds.')
       }
       throw err
     }

@@ -271,4 +271,80 @@ describe('VAANI — Voice Profile Status & Speaker Embedding Verification Suite'
       expect(meRes.body.isReadyForSynthesis).toBe(false)
     })
   })
+
+  describe('8. Audio Format & Gnani HTTP 500 Root Cause Safeguards', () => {
+    it('rejects WebM audio format with 400 UNSUPPORTED_AUDIO_FORMAT before calling provider', async () => {
+      // Simulate WebM container header bytes: 0x1A 0x45 0xDF 0xA3
+      const fakeWebm = Buffer.from([0x1a, 0x45, 0xdf, 0xa3, ...new Array(2000).fill(0)])
+      const base64Webm = fakeWebm.toString('base64')
+
+      const res = await request(app)
+        .post('/api/voice/enroll')
+        .set('Authorization', `Bearer ${tokenUserNew}`)
+        .send({
+          consentAccepted: true,
+          consentVersion: 'v1.0-2026',
+          enrollmentLanguage: 'hi-IN',
+          sampleDurationSec: 10,
+          audioBase64: base64Webm,
+          mimeType: 'audio/webm',
+        })
+
+      expect(res.status).toBe(400)
+      expect(res.body.error).toBe('UNSUPPORTED_AUDIO_FORMAT')
+      expect(res.body.message).toContain('WebM')
+    })
+
+    it('rejects audio samples shorter than 5 seconds with 400 AUDIO_TOO_SHORT', async () => {
+      // 2-second WAV
+      const shortWav = generateDeterministicWav(2, 300)
+      const base64Short = shortWav.toString('base64')
+
+      const res = await request(app)
+        .post('/api/voice/enroll')
+        .set('Authorization', `Bearer ${tokenUserNew}`)
+        .send({
+          consentAccepted: true,
+          consentVersion: 'v1.0-2026',
+          enrollmentLanguage: 'hi-IN',
+          sampleDurationSec: 3,
+          audioBase64: base64Short,
+          mimeType: 'audio/wav',
+        })
+
+      expect(res.status).toBe(400)
+      expect(res.body.error).toBe('AUDIO_TOO_SHORT')
+      expect(res.body.message).toContain('too short')
+    })
+
+    it('handles provider HTTP 500 gracefully without converting to fake success', async () => {
+      const validWav = generateDeterministicWav(8, 220)
+      const base64Valid = validWav.toString('base64')
+
+      // Mock gnaniProvider.enrollVoice to throw provider 500
+      vi.spyOn(gnaniProvider, 'enrollVoice').mockRejectedValueOnce(
+        new Error('GNANI_ENROLLMENT_ERROR (500): We are facing technical difficulties. Please try again later.')
+      )
+
+      const res = await request(app)
+        .post('/api/voice/enroll')
+        .set('Authorization', `Bearer ${tokenUserNew}`)
+        .send({
+          consentAccepted: true,
+          consentVersion: 'v1.0-2026',
+          enrollmentLanguage: 'hi-IN',
+          sampleDurationSec: 8,
+          audioBase64: base64Valid,
+          mimeType: 'audio/wav',
+        })
+
+      expect(res.status).toBe(502)
+      expect(res.body.error).toBe('GNANI_ENROLLMENT_FAILED')
+      expect(res.body.message).toContain('GNANI_ENROLLMENT_ERROR (500)')
+
+      // Verify profile is NOT marked ready
+      const profile = await dbRepo.getVoiceProfile('user-new')
+      expect(profile?.status).not.toBe('ready')
+    })
+  })
 })
