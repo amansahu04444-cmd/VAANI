@@ -114,8 +114,20 @@ export const voiceApi = {
     enrollmentLanguage?: string
     sampleDurationSec?: number
     sampleObjectKey?: string
+    audioBase64?: string
+    mimeType?: string
   }) {
-    return apiRequest<{ message: string; profile: { id: string; status: string } }>('/voice/enroll', {
+    return apiRequest<{
+      message: string
+      profile: {
+        id: string
+        status: string
+        supportedLanguages?: string[]
+        hasSpeakerEmbedding?: boolean
+        consentedAt?: string
+        sampleObjectKey?: string
+      }
+    }>('/voice/enroll', {
       method: 'POST',
       body: JSON.stringify(payload),
     })

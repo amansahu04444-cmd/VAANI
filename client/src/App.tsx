@@ -63,7 +63,7 @@ export function App() {
     voiceApi
       .getProfile()
       .then((profile) => {
-        setHasVoiceProfile(Boolean(profile && profile.status === 'ready'))
+        setHasVoiceProfile(Boolean(profile && profile.status === 'ready' && profile.hasSpeakerEmbedding))
       })
       .catch(() => {
         // Fall back gracefully

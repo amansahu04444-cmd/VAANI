@@ -81,8 +81,9 @@ speechRouter.post(
 
     let voiceProfileId: string | null = null
     let voiceLabel = `Timbre ${standardVoiceId}`
+    let personalEmbedding: any = null
 
-    // 1. If Personal Voice Mode selected, verify voice profile ownership
+    // 1. If Personal Voice Mode selected, verify voice profile ownership & valid tensor
     if (voiceMode === 'personal') {
       const profile = await dbRepo.getVoiceProfile(userId)
 
@@ -90,6 +91,24 @@ speechRouter.post(
         res.status(400).json({
           error: 'VOICE_PROFILE_REQUIRED',
           message: 'Cannot generate in Personal Voice mode: You must first enroll your voice profile in Voice Setup.',
+        })
+        return
+      }
+
+      if (profile.provider_voice_ref) {
+        try {
+          if (profile.provider_voice_ref.startsWith('{')) {
+            personalEmbedding = JSON.parse(profile.provider_voice_ref)
+          }
+        } catch {
+          // Ignore JSON parse error, caught below
+        }
+      }
+
+      if (!personalEmbedding || !personalEmbedding.embedding) {
+        res.status(400).json({
+          error: 'VOICE_EMBEDDING_INVALID',
+          message: 'Your enrolled voice profile is missing an active speaker embedding tensor. Please re-record your voice sample in Voice Setup.',
         })
         return
       }
@@ -105,30 +124,10 @@ speechRouter.post(
     try {
       if (process.env.GNANI_API_KEY && config.NODE_ENV !== 'test') {
         if (voiceMode === 'personal') {
-          const profile = await dbRepo.getVoiceProfile(userId)
-          let embedding: any = null
-          if (profile?.provider_voice_ref) {
-            try {
-              if (profile.provider_voice_ref.startsWith('{')) {
-                embedding = JSON.parse(profile.provider_voice_ref)
-              }
-            } catch {
-              // Ignore parse error
-            }
-          }
-
-          if (!embedding || !embedding.embedding) {
-            res.status(400).json({
-              error: 'VOICE_EMBEDDING_INVALID',
-              message: 'Your enrolled voice profile is missing an active speaker embedding tensor. Please re-record your voice sample in Voice Setup.',
-            })
-            return
-          }
-
           const result = await gnaniProvider.synthesizeWithSpeakerEmbedding({
             text,
             language: targetLanguage as SupportedLocale,
-            speakerEmbedding: embedding,
+            speakerEmbedding: personalEmbedding,
             speed,
           })
           audioBytes = result.audioBuffer

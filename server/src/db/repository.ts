@@ -455,6 +455,23 @@ export class SupabaseRepository {
   }
 
   /**
+   * Retrieves all consent events for user.
+   */
+  async getConsentEvents(userId: string): Promise<ConsentEventRecord[]> {
+    if (isUuid(userId)) {
+      try {
+        const { data, error } = await supabaseAdmin
+          .from('consent_events')
+          .select('*')
+          .eq('user_id', userId)
+          .order('accepted_at', { ascending: false })
+        if (!error && data) return data as ConsentEventRecord[]
+      } catch {}
+    }
+    return Array.from(mockDb.consentEvents.values()).filter((e) => e.user_id === userId)
+  }
+
+  /**
    * Looks up audio asset by speech job ID.
    */
   async getAudioAssetByJobId(jobId: string, userId: string): Promise<AudioAssetRecord | null> {

@@ -18,7 +18,7 @@ app.use(
     credentials: true,
   })
 )
-app.use(express.json({ limit: '2mb' }))
+app.use(express.json({ limit: '25mb' }))
 
 // Health check endpoints (GET /health and GET /api/health)
 const healthHandler = async (_req: Request, res: Response) => {
