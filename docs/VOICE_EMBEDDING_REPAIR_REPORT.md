@@ -154,3 +154,4 @@ A thorough root-cause audit revealed architectural breaks spanning the frontend 
 | [`server/src/providers/gnani/index.ts`](file:///c:/Users/amans/OneDrive/Desktop/VAANI/server/src/providers/gnani/index.ts) | Set `model: 'vachana-vc-v1'` for `synthesizeWithSpeakerEmbedding`. |
 | [`server/src/db/repository.ts`](file:///c:/Users/amans/OneDrive/Desktop/VAANI/server/src/db/repository.ts) | Seeded mock evaluation profiles with verified 768-dim tensors and added `getConsentEvents`. |
 | [`server/src/__tests__/voice_embedding_e2e.test.ts`](file:///c:/Users/amans/OneDrive/Desktop/VAANI/server/src/__tests__/voice_embedding_e2e.test.ts) | Added 8 automated tests for enrollment, safe updates, profile retrieval, personal synthesis, and revocation. |
+

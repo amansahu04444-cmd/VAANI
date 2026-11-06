@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AudioProvider } from './context/AudioContext'
 import { AppLayout } from './components/layout/AppLayout'
@@ -9,7 +9,7 @@ import { VoiceSetup } from './pages/VoiceSetup'
 import { SpeechStudio } from './pages/SpeechStudio'
 import { AudioLibrary } from './pages/AudioLibrary'
 import { Settings } from './pages/Settings'
-import type { AudioAsset, EnrollmentStatus } from './types'
+import type { AudioAsset, EnrollmentStatus, VoiceEnrollmentState } from './types'
 import { voiceApi } from './lib/api'
 
 const INITIAL_AUDIOS: AudioAsset[] = [
@@ -55,31 +55,71 @@ const INITIAL_AUDIOS: AudioAsset[] = [
 ]
 
 export function App() {
-  const [hasVoiceProfile, setHasVoiceProfile] = useState<boolean>(false)
+  const [voiceStatus, setVoiceStatus] = useState<VoiceEnrollmentState>('NOT_ENROLLED')
   const [userEmail, setUserEmail] = useState<string>('aman@vaani.ai')
   const [libraryAudios, setLibraryAudios] = useState<AudioAsset[]>(INITIAL_AUDIOS)
 
+  const isVoiceActive = voiceStatus === 'READY'
+
+  const refreshVoiceProfile = useCallback(async () => {
+    try {
+      const profile = await voiceApi.getProfile()
+      if (profile && profile.status === 'READY' && profile.isReadyForSynthesis && profile.hasSpeakerEmbedding) {
+        setVoiceStatus('READY')
+      } else if (profile) {
+        setVoiceStatus(profile.enrollmentStatus || (profile.status as VoiceEnrollmentState))
+      } else {
+        setVoiceStatus('NOT_ENROLLED')
+      }
+    } catch {
+      setVoiceStatus('NOT_ENROLLED')
+    }
+  }, [])
+
   useEffect(() => {
+    let isMounted = true
     voiceApi
       .getProfile()
       .then((profile) => {
-        setHasVoiceProfile(Boolean(profile && profile.status === 'ready' && profile.hasSpeakerEmbedding))
+        if (!isMounted) return
+        if (profile && profile.status === 'READY' && profile.isReadyForSynthesis && profile.hasSpeakerEmbedding) {
+          setVoiceStatus('READY')
+        } else if (profile) {
+          setVoiceStatus(profile.enrollmentStatus || (profile.status as VoiceEnrollmentState))
+        } else {
+          setVoiceStatus('NOT_ENROLLED')
+        }
       })
       .catch(() => {
-        // Fall back gracefully
+        if (isMounted) setVoiceStatus('NOT_ENROLLED')
       })
+
+    return () => {
+      isMounted = false
+    }
   }, [])
 
   const handleAudioGenerated = (newAudio: AudioAsset) => {
     setLibraryAudios((prev) => [newAudio, ...prev])
   }
 
-  const handleVoiceStatusChange = (status: EnrollmentStatus) => {
-    setHasVoiceProfile(status === 'ready')
+  const handleVoiceStatusChange = (status: VoiceEnrollmentState | EnrollmentStatus) => {
+    const norm =
+      status === 'ready'
+        ? 'READY'
+        : status === 'not_enrolled'
+        ? 'NOT_ENROLLED'
+        : status === 'processing'
+        ? 'EMBEDDING_PROCESSING'
+        : status === 'failed'
+        ? 'EMBEDDING_FAILED'
+        : (status as VoiceEnrollmentState)
+    setVoiceStatus(norm)
+    refreshVoiceProfile()
   }
 
   const handleRevokeProfile = () => {
-    setHasVoiceProfile(false)
+    setVoiceStatus('NOT_ENROLLED')
   }
 
   return (
@@ -87,15 +127,24 @@ export function App() {
       <BrowserRouter>
         <Routes>
           {/* Public Landing Page */}
-          <Route element={<AppLayout hasVoiceProfile={hasVoiceProfile} userEmail={userEmail} />}>
+          <Route element={<AppLayout hasVoiceProfile={isVoiceActive} voiceStatus={voiceStatus} userEmail={userEmail} />}>
             <Route path="/" element={<Landing />} />
             <Route path="/auth" element={<Auth onLoginSuccess={(email) => setUserEmail(email)} />} />
-            <Route path="/dashboard" element={<Dashboard hasVoiceProfile={hasVoiceProfile} recentAudios={libraryAudios} />} />
+            <Route
+              path="/dashboard"
+              element={
+                <Dashboard
+                  hasVoiceProfile={isVoiceActive}
+                  voiceStatus={voiceStatus}
+                  recentAudios={libraryAudios}
+                />
+              }
+            />
             <Route
               path="/voice-setup"
               element={
                 <VoiceSetup
-                  currentStatus={hasVoiceProfile ? 'ready' : 'not_enrolled'}
+                  currentStatus={voiceStatus}
                   onStatusChange={handleVoiceStatusChange}
                 />
               }
@@ -104,7 +153,8 @@ export function App() {
               path="/studio"
               element={
                 <SpeechStudio
-                  hasVoiceProfile={hasVoiceProfile}
+                  hasVoiceProfile={isVoiceActive}
+                  voiceStatus={voiceStatus}
                   onAudioGenerated={handleAudioGenerated}
                 />
               }
@@ -117,7 +167,8 @@ export function App() {
               path="/settings"
               element={
                 <Settings
-                  hasVoiceProfile={hasVoiceProfile}
+                  hasVoiceProfile={isVoiceActive}
+                  voiceStatus={voiceStatus}
                   onRevokeProfile={handleRevokeProfile}
                 />
               }

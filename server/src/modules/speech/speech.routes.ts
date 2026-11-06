@@ -10,6 +10,7 @@ import { gnaniProvider } from '../../providers/gnani/index.js'
 import { SUPPORTED_LOCALES, SupportedLocale } from '../../providers/gnani/types.js'
 import { StorageService } from '../storage/storage.service.js'
 import { ensureValidWavBuffer, inspectAudioBuffer } from '../audio/audio.utils.js'
+import { evaluateVoiceProfile } from '../voice/voice.service.js'
 
 export const speechRouter = Router()
 
@@ -86,35 +87,30 @@ speechRouter.post(
     // 1. If Personal Voice Mode selected, verify voice profile ownership & valid tensor
     if (voiceMode === 'personal') {
       const profile = await dbRepo.getVoiceProfile(userId)
+      const evaluated = evaluateVoiceProfile(profile)
 
-      if (!profile || profile.status !== 'ready') {
+      if (evaluated.enrollmentStatus === 'NOT_ENROLLED') {
         res.status(400).json({
           error: 'VOICE_PROFILE_REQUIRED',
+          status: 'NOT_ENROLLED',
           message: 'Cannot generate in Personal Voice mode: You must first enroll your voice profile in Voice Setup.',
         })
         return
       }
 
-      if (profile.provider_voice_ref) {
-        try {
-          if (profile.provider_voice_ref.startsWith('{')) {
-            personalEmbedding = JSON.parse(profile.provider_voice_ref)
-          }
-        } catch {
-          // Ignore JSON parse error, caught below
-        }
-      }
-
-      if (!personalEmbedding || !personalEmbedding.embedding) {
+      if (!evaluated.isReadyForSynthesis || !evaluated.hasSpeakerEmbedding || !evaluated.embeddingPayload) {
         res.status(400).json({
           error: 'VOICE_EMBEDDING_INVALID',
-          message: 'Your enrolled voice profile is missing an active speaker embedding tensor. Please re-record your voice sample in Voice Setup.',
+          status: evaluated.enrollmentStatus,
+          embeddingStatus: evaluated.embeddingStatus,
+          message: evaluated.errorMessage || 'Your enrolled voice profile is missing an active speaker embedding tensor. Please re-record your voice sample in Voice Setup.',
         })
         return
       }
 
-      voiceProfileId = profile.id
+      voiceProfileId = profile!.id
       voiceLabel = `Your Enrolled Voice (${req.user!.email.split('@')[0]})`
+      personalEmbedding = evaluated.embeddingPayload
     }
 
     // 2. Synthesize speech (real Gnani Timbre call if API key present, or fallback fixture)

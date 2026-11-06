@@ -9,7 +9,7 @@ import { VoxelAudioPlayer } from '../components/ui/VoxelAudioPlayer'
 import { CubeIllustration } from '../components/ui/CubeIllustration'
 import { VoiceCore } from '../components/ui/VoiceCore'
 import { PixelDivider } from '../components/ui/PixelDivider'
-import type { AudioAsset } from '../types'
+import type { AudioAsset, VoiceEnrollmentState } from '../types'
 import { formatDate } from '../lib/utils'
 
 const DEFAULT_RECENT_AUDIOS: AudioAsset[] = [
@@ -43,13 +43,17 @@ const DEFAULT_RECENT_AUDIOS: AudioAsset[] = [
 
 export interface DashboardProps {
   hasVoiceProfile?: boolean
+  voiceStatus?: VoiceEnrollmentState
   recentAudios?: AudioAsset[]
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({
   hasVoiceProfile = false,
+  voiceStatus,
   recentAudios = DEFAULT_RECENT_AUDIOS,
 }) => {
+  const isReady = voiceStatus === 'READY' || (hasVoiceProfile && !voiceStatus)
+  const isMissingTensor = voiceStatus === 'EMBEDDING_MISSING'
   return (
     <div className="space-y-8 select-none">
       {/* Voxel Hero Command Banner */}
@@ -116,24 +120,24 @@ export const Dashboard: React.FC<DashboardProps> = ({
       {/* Modular HUD Stats Grid (4 Distinct Elevation Blocks) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Block 1: Voice Profile */}
-        <VoxelCard biome={hasVoiceProfile ? 'grass' : 'gold'} className="space-y-3">
+        <VoxelCard biome={isReady ? 'grass' : isMissingTensor ? 'redstone' : 'gold'} className="space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-pixel text-voxel-sand">VOICE CORE</span>
-            <Mic2 className="w-4 h-4 text-voxel-grass" />
+            <Mic2 className={`w-4 h-4 ${isReady ? 'text-voxel-grass' : isMissingTensor ? 'text-voxel-redstone' : 'text-voxel-gold'}`} />
           </div>
           <div className="flex items-center gap-3">
-            <VoiceCore status={hasVoiceProfile ? 'ready' : 'not_enrolled'} size={34} />
+            <VoiceCore status={isReady ? 'ready' : 'not_enrolled'} size={34} />
             <div>
               <h4 className="text-sm font-pixel text-voxel-cloud">
-                {hasVoiceProfile ? 'AMAN SHARMA' : 'NO PROFILE'}
+                {isReady ? 'AMAN SHARMA' : isMissingTensor ? 'TENSOR MISSING' : 'NO PROFILE'}
               </h4>
               <p className="text-[10px] font-mono text-voxel-stone-light">
-                {hasVoiceProfile ? '768-dim Vector Active' : 'Standard Voices Only'}
+                {isReady ? '768-dim Vector Active' : isMissingTensor ? 'Re-recording Required' : 'Standard Voices Only'}
               </p>
             </div>
           </div>
           <Link to="/voice-setup" className="block text-[10px] font-pixel text-voxel-gold hover:underline pt-1">
-            {hasVoiceProfile ? 'MANAGE BIOMETRICS ➔' : 'CRAFT PROFILE ➔'}
+            {isReady ? 'MANAGE BIOMETRICS ➔' : isMissingTensor ? 'FIX ENROLLMENT ➔' : 'CRAFT PROFILE ➔'}
           </Link>
         </VoxelCard>
 

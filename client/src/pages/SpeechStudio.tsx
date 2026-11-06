@@ -12,24 +12,28 @@ import { CubeIllustration } from '../components/ui/CubeIllustration'
 import { VoiceCore } from '../components/ui/VoiceCore'
 import { BlockProgress } from '../components/ui/BlockProgress'
 import { SUPPORTED_LANGUAGES, STANDARD_VOICES, DEMO_SCRIPTS } from '../lib/constants'
-import type { VoiceMode, AudioAsset } from '../types'
+import type { VoiceMode, AudioAsset, VoiceEnrollmentState } from '../types'
 import { speechApi, audioApi } from '../lib/api'
 import { useAudioEngine } from '../context/AudioContext'
 
 export interface SpeechStudioProps {
   hasVoiceProfile?: boolean
+  voiceStatus?: VoiceEnrollmentState
   onAudioGenerated?: (newAudio: AudioAsset) => void
 }
 
 export const SpeechStudio: React.FC<SpeechStudioProps> = ({
   hasVoiceProfile = false,
+  voiceStatus,
   onAudioGenerated,
 }) => {
   const { playUiSound } = useAudioEngine()
+  const isPersonalVoiceReady = voiceStatus === 'READY' || (hasVoiceProfile && !voiceStatus)
+
   const [scriptText, setScriptText] = useState('')
   const [scriptTitle, setScriptTitle] = useState('')
   const [selectedLanguage, setSelectedLanguage] = useState(SUPPORTED_LANGUAGES[0].code)
-  const [voiceMode, setVoiceMode] = useState<VoiceMode>(hasVoiceProfile ? 'personal' : 'standard')
+  const [voiceMode, setVoiceMode] = useState<VoiceMode>(isPersonalVoiceReady ? 'personal' : 'standard')
   const [selectedStandardVoice, setSelectedStandardVoice] = useState(STANDARD_VOICES[0].id)
   const [speed, setSpeed] = useState<number>(1.0)
   const [isGenerating, setIsGenerating] = useState(false)
@@ -61,8 +65,12 @@ export const SpeechStudio: React.FC<SpeechStudioProps> = ({
       return
     }
 
-    if (voiceMode === 'personal' && !hasVoiceProfile) {
-      setErrorNotice('Cannot generate in Personal Voice mode: you have not enrolled your voice profile yet. Please switch to Standard Voice mode or complete enrollment in Voice Setup.')
+    if (voiceMode === 'personal' && !isPersonalVoiceReady) {
+      if (voiceStatus === 'EMBEDDING_MISSING') {
+        setErrorNotice('Cannot generate in Personal Voice mode: your enrolled voice profile is missing an active speaker embedding tensor. Please re-record or upload a voice sample in Voice Setup.')
+      } else {
+        setErrorNotice('Cannot generate in Personal Voice mode: you have not enrolled your voice profile yet. Please switch to Standard Voice mode or complete enrollment in Voice Setup.')
+      }
       return
     }
 
@@ -134,6 +142,14 @@ export const SpeechStudio: React.FC<SpeechStudioProps> = ({
           label={isGenerating ? 'SYNTHESIZING' : generatedAudio ? 'AUDIO READY' : 'TIMBRE READY'}
         />
       </div>
+
+      {voiceStatus === 'EMBEDDING_MISSING' && !errorNotice && (
+        <BlockNoticeBanner
+          variant="warning"
+          title="SPEAKER EMBEDDING TENSOR MISSING"
+          message="Your personal voice profile is registered in the database, but is missing an active 768-dimensional speaker embedding vector. Please complete audio enrollment in Voice Setup to enable Personal Voice synthesis."
+        />
+      )}
 
       {errorNotice && (
         <BlockNoticeBanner
@@ -239,22 +255,36 @@ export const SpeechStudio: React.FC<SpeechStudioProps> = ({
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
-                    onClick={() => setVoiceMode('personal')}
-                    disabled={!hasVoiceProfile}
+                    onClick={() => {
+                      if (isPersonalVoiceReady) {
+                        setVoiceMode('personal')
+                      }
+                    }}
+                    disabled={!isPersonalVoiceReady}
                     className={`p-3 text-left border-2 block-pressable transition-all ${
-                      voiceMode === 'personal'
+                      voiceMode === 'personal' && isPersonalVoiceReady
                         ? 'bg-[#153818] border-voxel-grass shadow-voxel-grass'
-                        : 'bg-voxel-bedrock border-voxel-stone-dark opacity-60'
+                        : isPersonalVoiceReady
+                        ? 'bg-voxel-bedrock border-voxel-stone-dark'
+                        : 'bg-voxel-bedrock border-voxel-stone-dark opacity-50 cursor-not-allowed'
                     }`}
                   >
                     <div className="flex items-center gap-2 mb-1">
-                      <Mic className="w-3.5 h-3.5 text-voxel-grass" />
+                      <Mic className={`w-3.5 h-3.5 ${isPersonalVoiceReady ? 'text-voxel-grass' : 'text-voxel-stone-light'}`} />
                       <span className="text-[10px] font-pixel text-voxel-cloud uppercase">
                         PERSONAL
                       </span>
                     </div>
                     <p className="text-[10px] font-mono text-voxel-stone-light">
-                      {hasVoiceProfile ? 'Cloned Voice Active' : 'Requires Enrollment'}
+                      {isPersonalVoiceReady
+                        ? 'Cloned Voice Active'
+                        : voiceStatus === 'EMBEDDING_MISSING'
+                        ? 'Embedding Tensor Missing'
+                        : voiceStatus === 'EMBEDDING_PROCESSING'
+                        ? 'Extracting Vector...'
+                        : voiceStatus === 'EMBEDDING_FAILED'
+                        ? 'Extraction Failed'
+                        : 'Requires Enrollment'}
                     </p>
                   </button>
 

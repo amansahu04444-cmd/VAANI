@@ -19,15 +19,18 @@ import { BlockButton } from '../ui/BlockButton'
 import { CubeIllustration } from '../ui/CubeIllustration'
 import { APP_NAME } from '../../lib/constants'
 import { useAudioEngine } from '../../context/AudioContext'
+import type { VoiceEnrollmentState } from '../../types'
 
 export interface NavbarProps {
   hasVoiceProfile?: boolean
+  voiceStatus?: VoiceEnrollmentState
   userEmail?: string
   onSignOut?: () => void
 }
 
 export const BlockNavbar: React.FC<NavbarProps> = ({
   hasVoiceProfile = false,
+  voiceStatus,
   userEmail = 'aman@vaani.ai',
   onSignOut,
 }) => {
@@ -248,10 +251,30 @@ export const BlockNavbar: React.FC<NavbarProps> = ({
             )}
           </div>
           <Link to="/voice-setup">
-            {hasVoiceProfile ? (
+            {voiceStatus === 'READY' || (!voiceStatus && hasVoiceProfile) ? (
               <BlockBadge variant="grass" size="sm" className="cursor-pointer hover:border-voxel-gold">
                 <span className="w-1.5 h-1.5 bg-voxel-grass animate-ping"></span>
                 <span>VOICE: ACTIVE</span>
+              </BlockBadge>
+            ) : voiceStatus === 'EMBEDDING_MISSING' ? (
+              <BlockBadge variant="redstone" size="sm" className="cursor-pointer hover:border-white" title="Voice profile exists but speaker embedding tensor is missing. Click to re-record.">
+                <span className="w-1.5 h-1.5 bg-voxel-redstone animate-pulse"></span>
+                <span>VOICE: MISSING TENSOR</span>
+              </BlockBadge>
+            ) : voiceStatus === 'EMBEDDING_PROCESSING' ? (
+              <BlockBadge variant="lapis" size="sm" className="cursor-pointer hover:border-white">
+                <span className="w-1.5 h-1.5 bg-voxel-lapis animate-spin"></span>
+                <span>VOICE: PROCESSING</span>
+              </BlockBadge>
+            ) : voiceStatus === 'EMBEDDING_FAILED' ? (
+              <BlockBadge variant="redstone" size="sm" className="cursor-pointer hover:border-white">
+                <span className="w-1.5 h-1.5 bg-voxel-redstone"></span>
+                <span>VOICE: FAILED</span>
+              </BlockBadge>
+            ) : voiceStatus === 'RECORDING_UPLOADED' ? (
+              <BlockBadge variant="gold" size="sm" className="cursor-pointer hover:border-white">
+                <span className="w-1.5 h-1.5 bg-voxel-gold"></span>
+                <span>VOICE: UPLOADED</span>
               </BlockBadge>
             ) : (
               <BlockBadge variant="gold" size="sm" className="cursor-pointer hover:border-white">

@@ -6,16 +6,21 @@ import { BlockBadge } from '../components/ui/BlockBadge'
 import { BlockNoticeBanner } from '../components/ui/BlockNoticeBanner'
 import { BlockModal } from '../components/ui/BlockModal'
 import { CubeIllustration } from '../components/ui/CubeIllustration'
+import type { VoiceEnrollmentState } from '../types'
 
 export interface SettingsProps {
   hasVoiceProfile?: boolean
+  voiceStatus?: VoiceEnrollmentState
   onRevokeProfile?: () => void
 }
 
 export const Settings: React.FC<SettingsProps> = ({
   hasVoiceProfile = false,
+  voiceStatus,
   onRevokeProfile,
 }) => {
+  const isReady = voiceStatus === 'READY' || (hasVoiceProfile && !voiceStatus)
+  const isMissingTensor = voiceStatus === 'EMBEDDING_MISSING'
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [discardRawAudio, setDiscardRawAudio] = useState(true)
   const [profilePurged, setProfilePurged] = useState(false)
@@ -146,13 +151,15 @@ export const Settings: React.FC<SettingsProps> = ({
                 ACTIVE BIOMETRIC EMBEDDING
               </span>
               <p className="text-voxel-stone-light font-sans text-xs">
-                {hasVoiceProfile
+                {isReady
                   ? '768-dimensional float vector stored in private Supabase bucket.'
+                  : isMissingTensor
+                  ? 'Incomplete: Voice profile exists but 768-dim tensor is missing.'
                   : 'No active profile enrolled.'}
               </p>
             </div>
 
-            {hasVoiceProfile ? (
+            {isReady || isMissingTensor ? (
               <BlockButton
                 variant="destructive"
                 size="sm"

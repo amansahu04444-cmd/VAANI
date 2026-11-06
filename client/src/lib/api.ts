@@ -85,20 +85,37 @@ export const voiceApi = {
   async getProfile(): Promise<UserVoiceProfile | null> {
     try {
       const data = await apiRequest<any>('/voice/me')
-      if (!data || data.status === 'not_enrolled') {
+      if (!data || data.status === 'not_enrolled' || data.status === 'NOT_ENROLLED') {
         return null
       }
+      const rawStatus = data.enrollmentStatus || data.status
+      const normStatus =
+        rawStatus === 'ready'
+          ? 'READY'
+          : rawStatus === 'not_enrolled'
+          ? 'NOT_ENROLLED'
+          : rawStatus === 'processing'
+          ? 'EMBEDDING_PROCESSING'
+          : rawStatus === 'failed'
+          ? 'EMBEDDING_FAILED'
+          : rawStatus
+
       return {
         id: data.id,
         userId: data.userId,
-        status: data.status,
+        status: normStatus,
+        enrollmentStatus: normStatus,
+        embeddingStatus: data.embeddingStatus || (data.hasSpeakerEmbedding ? 'ACTIVE' : 'MISSING'),
+        isReadyForSynthesis: Boolean(data.isReadyForSynthesis && normStatus === 'READY'),
+        hasSpeakerEmbedding: Boolean(data.hasSpeakerEmbedding),
         enrollmentLanguage: data.enrollmentLanguage,
         supportedLanguages: data.supportedLanguages || [],
         sampleDurationSec: data.sampleDurationSec,
+        sampleObjectKey: data.sampleObjectKey,
         consentedAt: data.consentedAt,
         consentVersion: data.consentVersion,
-        hasSpeakerEmbedding: data.hasSpeakerEmbedding,
         createdAt: data.createdAt,
+        errorMessage: data.errorMessage,
       }
     } catch (err: any) {
       if (err.status === 404 || (err.message && (err.message.includes('404') || err.message.includes('NOT_FOUND') || err.message.includes('No active voice profile')))) {

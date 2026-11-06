@@ -11,19 +11,28 @@ import { VoiceCore } from '../components/ui/VoiceCore'
 import { BlockProgress } from '../components/ui/BlockProgress'
 import { PixelDivider } from '../components/ui/PixelDivider'
 import { VOICE_CONSENT_STATEMENT } from '../lib/constants'
-import type { EnrollmentStatus } from '../types'
+import type { EnrollmentStatus, VoiceEnrollmentState } from '../types'
 import { voiceApi } from '../lib/api'
 
 export interface VoiceSetupProps {
-  currentStatus?: EnrollmentStatus
-  onStatusChange?: (status: EnrollmentStatus) => void
+  currentStatus?: VoiceEnrollmentState | EnrollmentStatus
+  onStatusChange?: (status: VoiceEnrollmentState) => void
 }
 
 export const VoiceSetup: React.FC<VoiceSetupProps> = ({
-  currentStatus = 'not_enrolled',
+  currentStatus = 'NOT_ENROLLED',
   onStatusChange,
 }) => {
-  const [status, setStatus] = useState<EnrollmentStatus>(currentStatus)
+  const normInitial =
+    currentStatus === 'ready'
+      ? 'READY'
+      : currentStatus === 'not_enrolled'
+      ? 'NOT_ENROLLED'
+      : (currentStatus as VoiceEnrollmentState)
+
+  const [status, setStatus] = useState<VoiceEnrollmentState>(normInitial)
+  const isReady = status === 'READY'
+  const isMissingTensor = status === 'EMBEDDING_MISSING'
   const [consentAccepted, setConsentAccepted] = useState(false)
   const [isRecording, setIsRecording] = useState(false)
   const [recordDuration, setRecordDuration] = useState(0)
@@ -51,9 +60,20 @@ export const VoiceSetup: React.FC<VoiceSetupProps> = ({
     voiceApi
       .getProfile()
       .then((profile) => {
-        if (profile && profile.status === 'ready' && profile.hasSpeakerEmbedding) {
-          setStatus('ready')
-          if (onStatusChange) onStatusChange('ready')
+        if (!profile) {
+          setStatus('NOT_ENROLLED')
+          if (onStatusChange) onStatusChange('NOT_ENROLLED')
+          return
+        }
+
+        const resolvedStatus = profile.enrollmentStatus || (profile.status as VoiceEnrollmentState)
+        setStatus(resolvedStatus)
+        if (onStatusChange) onStatusChange(resolvedStatus)
+
+        if (resolvedStatus === 'EMBEDDING_MISSING') {
+          setValidationError(
+            'Your voice profile is registered in the database, but is missing an active 768-dimensional speaker embedding vector. Please re-record or upload a voice sample below to extract and activate your vocal characteristics.'
+          )
         }
       })
       .catch(() => {
@@ -315,8 +335,8 @@ export const VoiceSetup: React.FC<VoiceSetupProps> = ({
       setProcessingProgress(100)
       setProcessingStep('Tensor verified: shape [1, 768] (torch.bfloat16). Voice profile ready!')
 
-      setStatus('ready')
-      if (onStatusChange) onStatusChange('ready')
+      setStatus('READY')
+      if (onStatusChange) onStatusChange('READY')
       setApiNotice(response.message || 'Voice profile enrolled and 768-dim speaker embedding generated successfully.')
     } catch (err: any) {
       clearTimeout(timer1)
@@ -324,6 +344,9 @@ export const VoiceSetup: React.FC<VoiceSetupProps> = ({
       setProcessingProgress(0)
       setProcessingStep('')
       console.error('[Voice Enrollment Error]:', err)
+
+      setStatus('EMBEDDING_FAILED')
+      if (onStatusChange) onStatusChange('EMBEDDING_FAILED')
 
       // NEVER silently fake success: display real server error to user
       setValidationError(
@@ -343,7 +366,7 @@ export const VoiceSetup: React.FC<VoiceSetupProps> = ({
     } catch (err: any) {
       setValidationError(err.message || 'Failed to revoke voice profile from server.')
     }
-    setStatus('not_enrolled')
+    setStatus('NOT_ENROLLED')
     setHasRecordedSample(false)
     setConsentAccepted(false)
     setUploadedFileName(null)
@@ -353,7 +376,7 @@ export const VoiceSetup: React.FC<VoiceSetupProps> = ({
       setAudioPreviewUrl(null)
     }
     setRecordDuration(0)
-    if (onStatusChange) onStatusChange('not_enrolled')
+    if (onStatusChange) onStatusChange('NOT_ENROLLED')
   }
 
   return (
@@ -383,10 +406,20 @@ export const VoiceSetup: React.FC<VoiceSetupProps> = ({
         </div>
 
         <VoiceCore
-          status={isRecording ? 'recording' : isProcessing ? 'processing' : status === 'ready' ? 'ready' : 'not_enrolled'}
+          status={isRecording ? 'recording' : isProcessing ? 'processing' : isReady ? 'ready' : 'not_enrolled'}
           isGenerating={isProcessing}
           size={52}
-          label={isRecording ? 'RECORDING' : isProcessing ? 'EXTRACTING' : status === 'ready' ? 'PROFILE ACTIVE' : 'NO PROFILE'}
+          label={
+            isRecording
+              ? 'RECORDING'
+              : isProcessing
+              ? 'EXTRACTING'
+              : isReady
+              ? 'PROFILE ACTIVE'
+              : isMissingTensor
+              ? 'TENSOR MISSING'
+              : 'NO PROFILE'
+          }
         />
       </div>
 
@@ -399,8 +432,8 @@ export const VoiceSetup: React.FC<VoiceSetupProps> = ({
         />
       )}
 
-      {/* Active Profile Summary Card if enrolled */}
-      {status === 'ready' && (
+      {/* Active Profile Summary Card if enrolled and tensor verified */}
+      {isReady && (
         <VoxelCard biome="grass" glow className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
             <div className="space-y-2">
@@ -428,6 +461,39 @@ export const VoiceSetup: React.FC<VoiceSetupProps> = ({
               className="shrink-0"
             >
               REVOKE BIOMETRICS
+            </BlockButton>
+          </div>
+        </VoxelCard>
+      )}
+
+      {/* Incomplete / Missing Tensor Card */}
+      {isMissingTensor && (
+        <VoxelCard biome="redstone" glow className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <BlockBadge variant="redstone">
+                  <span>INCOMPLETE ENROLLMENT</span>
+                </BlockBadge>
+                <span className="text-[10px] font-mono text-voxel-redstone font-semibold">
+                  SPEAKER EMBEDDING TENSOR MISSING
+                </span>
+              </div>
+              <h3 className="text-base font-pixel uppercase text-voxel-cloud">
+                SPEAKER EMBEDDING VECTOR REQUIRED FOR SYNTHESIS
+              </h3>
+              <p className="text-xs font-sans text-voxel-stone-light max-w-xl leading-relaxed">
+                Your profile is registered in Supabase, but is missing an active 768-dimensional speaker embedding vector. Speech Studio cannot clone your voice without this tensor. Please record or upload a sample below to complete extraction.
+              </p>
+            </div>
+            <BlockButton
+              variant="destructive"
+              size="sm"
+              onClick={() => setIsDeleteModalOpen(true)}
+              leftIcon={<Trash2 className="w-3.5 h-3.5" />}
+              className="shrink-0"
+            >
+              PURGE BIOMETRICS
             </BlockButton>
           </div>
         </VoxelCard>

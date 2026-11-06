@@ -9,6 +9,9 @@ import { dbRepo, isUuid, VoiceProfileRecord } from '../../db/repository.js'
 import { gnaniProvider } from '../../providers/gnani/index.js'
 import { StorageService } from '../storage/storage.service.js'
 import { ensureValidWavBuffer, generateDeterministicWav } from '../audio/audio.utils.js'
+import { evaluateVoiceProfile, validateSpeakerEmbeddingTensor } from './voice.service.js'
+export { evaluateVoiceProfile, validateSpeakerEmbeddingTensor } from './voice.service.js'
+export * from './voice.types.js'
 
 export const voiceRouter = Router()
 
@@ -34,32 +37,53 @@ const VERIFIED_FALLBACK_EMBEDDING = {
 /**
  * GET /api/voice/me
  * Retrieves current user's voice profile. Strictly scoped to authenticated user ID.
+ * Returns authoritative backend-verified status:
+ * NOT_ENROLLED | RECORDING_UPLOADED | EMBEDDING_PROCESSING | EMBEDDING_FAILED | EMBEDDING_MISSING | READY
  */
 voiceRouter.get('/me', requireAuth, async (req: Request, res: Response) => {
   const userId = req.user!.id
   const profile = await dbRepo.getVoiceProfile(userId)
+  const evaluated = evaluateVoiceProfile(profile)
 
-  if (!profile) {
+  if (evaluated.enrollmentStatus === 'NOT_ENROLLED') {
     res.status(404).json({
       error: 'VOICE_PROFILE_NOT_FOUND',
       message: 'No active voice profile registered for this account.',
       status: 'not_enrolled',
+      enrollmentStatus: 'NOT_ENROLLED',
+      embeddingStatus: 'NONE',
+      isReadyForSynthesis: false,
+      hasSpeakerEmbedding: false,
     })
     return
   }
 
+  // Auto-heal database inconsistency:
+  // If profile was historically marked 'ready' in DB but tensor is missing/corrupted,
+  // sanitize the DB record so it never falsely reports ready.
+  if (profile && profile.status === 'ready' && !evaluated.hasSpeakerEmbedding) {
+    console.warn(`[VoiceRoutes] Auto-healing inconsistent profile ${profile.id}: marked ready in DB but missing tensor.`)
+    profile.status = 'failed'
+    await dbRepo.saveVoiceProfile(profile)
+  }
+
   // Never return raw internal secrets or provider tokens to client
   res.json({
-    id: profile.id,
-    userId: profile.user_id,
-    status: profile.status,
-    enrollmentLanguage: profile.enrollment_language,
-    supportedLanguages: profile.supported_languages,
-    sampleDurationSec: profile.sample_duration_sec,
-    consentVersion: profile.consent_version,
-    consentedAt: profile.consented_at,
-    hasSpeakerEmbedding: Boolean(profile.provider_voice_ref && profile.provider_voice_ref.includes('embedding')),
-    createdAt: profile.created_at,
+    id: profile!.id,
+    userId: profile!.user_id,
+    status: evaluated.enrollmentStatus,
+    enrollmentStatus: evaluated.enrollmentStatus,
+    embeddingStatus: evaluated.embeddingStatus,
+    isReadyForSynthesis: evaluated.isReadyForSynthesis,
+    hasSpeakerEmbedding: evaluated.hasSpeakerEmbedding,
+    enrollmentLanguage: profile!.enrollment_language,
+    supportedLanguages: profile!.supported_languages,
+    sampleDurationSec: profile!.sample_duration_sec,
+    sampleObjectKey: profile!.sample_object_key,
+    consentVersion: profile!.consent_version,
+    consentedAt: profile!.consented_at,
+    createdAt: profile!.created_at,
+    errorMessage: evaluated.errorMessage,
   })
 })
 
@@ -180,12 +204,26 @@ voiceRouter.post(
       embeddingResult = VERIFIED_FALLBACK_EMBEDDING
     }
 
-    // 6. Save active voice profile with verified tensor
+    // 6. Strictly validate the embedding tensor before activating profile
+    const validatedTensor = validateSpeakerEmbeddingTensor(embeddingResult)
+    if (!validatedTensor) {
+      res.status(502).json({
+        error: 'GNANI_EMBEDDING_INVALID',
+        status: 'EMBEDDING_FAILED',
+        enrollmentStatus: 'EMBEDDING_FAILED',
+        embeddingStatus: 'FAILED',
+        isReadyForSynthesis: false,
+        message: 'Extracted speaker embedding tensor is invalid or corrupt. Voice profile was not activated.',
+      })
+      return
+    }
+
+    // 7. Save active voice profile with verified tensor
     const profileRecord: VoiceProfileRecord = {
       id: profileId,
       user_id: userId,
       provider: 'gnani',
-      provider_voice_ref: JSON.stringify(embeddingResult),
+      provider_voice_ref: JSON.stringify(validatedTensor),
       status: 'ready',
       enrollment_language: enrollmentLanguage,
       supported_languages: ['hi-IN', 'en-IN', 'auto', 'ta-IN', 'te-IN'],
@@ -203,9 +241,12 @@ voiceRouter.post(
       message: 'Voice profile enrolled and 768-dim speaker embedding generated successfully.',
       profile: {
         id: profileRecord.id,
-        status: profileRecord.status,
-        supportedLanguages: profileRecord.supported_languages,
+        status: 'ready',
+        enrollmentStatus: 'READY',
+        embeddingStatus: 'ACTIVE',
+        isReadyForSynthesis: true,
         hasSpeakerEmbedding: true,
+        supportedLanguages: profileRecord.supported_languages,
         consentedAt: profileRecord.consented_at,
         sampleObjectKey: profileRecord.sample_object_key,
       },
