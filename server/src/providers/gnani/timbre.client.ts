@@ -60,20 +60,28 @@ export class GnaniTimbreClient {
           parsedError = { raw: errorText }
         }
 
+        let errCode = 'GNANI_ERROR'
+        let errMsg = `GNANI_ERROR (${response.status}): ${response.statusText}. Details: ${JSON.stringify(parsedError)}`
+
         if (response.status === 401) {
-          throw new Error(`GNANI_AUTH_FAILED (401): Invalid or expired X-API-Key-ID. Details: ${JSON.stringify(parsedError)}`)
-        }
-        if (response.status === 403) {
-          throw new Error(`GNANI_FORBIDDEN (403): Account does not have entitlement for model ${validated.model}. Details: ${JSON.stringify(parsedError)}`)
-        }
-        if (response.status === 429) {
-          throw new Error(`GNANI_QUOTA_EXCEEDED (429): API rate limit or challenge credits exhausted.`)
-        }
-        if (response.status === 400) {
-          throw new Error(`GNANI_INVALID_REQUEST (400): Provider rejected schema parameters. Details: ${JSON.stringify(parsedError)}`)
+          errCode = 'GNANI_AUTH_FAILED'
+          errMsg = `GNANI_AUTH_FAILED (401): Invalid or expired X-API-Key-ID. Details: ${JSON.stringify(parsedError)}`
+        } else if (response.status === 403) {
+          errCode = 'GNANI_FORBIDDEN'
+          errMsg = `GNANI_FORBIDDEN (403): Account does not have entitlement for model ${validated.model}. Details: ${JSON.stringify(parsedError)}`
+        } else if (response.status === 429) {
+          errCode = 'GNANI_QUOTA_EXCEEDED'
+          errMsg = `GNANI_QUOTA_EXCEEDED (429): API rate limit or challenge credits exhausted.`
+        } else if (response.status === 400) {
+          errCode = 'GNANI_INVALID_REQUEST'
+          errMsg = `GNANI_INVALID_REQUEST (400): Provider rejected schema parameters. Details: ${JSON.stringify(parsedError)}`
         }
 
-        throw new Error(`GNANI_ERROR (${response.status}): ${response.statusText}. Details: ${JSON.stringify(parsedError)}`)
+        const err: any = new Error(errMsg)
+        err.status = response.status
+        err.code = errCode
+        err.providerDetails = parsedError
+        throw err
       }
 
       const arrayBuffer = await response.arrayBuffer()

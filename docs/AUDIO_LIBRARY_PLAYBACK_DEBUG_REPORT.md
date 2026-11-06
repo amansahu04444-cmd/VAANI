@@ -230,3 +230,4 @@ Build verification:
 | [client/src/pages/AudioLibrary.tsx](file:///c:/Users/amans/OneDrive/Desktop/VAANI/client/src/pages/AudioLibrary.tsx) | Connected `activePlayingId` state, wired `assetId` and signed URL callback |
 | [client/src/pages/SpeechStudio.tsx](file:///c:/Users/amans/OneDrive/Desktop/VAANI/client/src/pages/SpeechStudio.tsx) | Passed `assetId` and signed URL handler to result card player |
 | [server/src/__tests__/audio_library_playback.test.ts](file:///c:/Users/amans/OneDrive/Desktop/VAANI/server/src/__tests__/audio_library_playback.test.ts) | Added comprehensive 13-test suite covering WAV repair, streaming, seeking, downloading, and IDOR protection |
+

@@ -106,15 +106,23 @@ speechRouter.post(
       if (process.env.GNANI_API_KEY && config.NODE_ENV !== 'test') {
         if (voiceMode === 'personal') {
           const profile = await dbRepo.getVoiceProfile(userId)
-          let embedding: any = { embedding: 'mock-embedding', shape: [1, 768], dtype: 'torch.bfloat16' }
+          let embedding: any = null
           if (profile?.provider_voice_ref) {
             try {
               if (profile.provider_voice_ref.startsWith('{')) {
                 embedding = JSON.parse(profile.provider_voice_ref)
               }
             } catch {
-              // Ignore parse error, use default embedding structure
+              // Ignore parse error
             }
+          }
+
+          if (!embedding || !embedding.embedding) {
+            res.status(400).json({
+              error: 'VOICE_EMBEDDING_INVALID',
+              message: 'Your enrolled voice profile is missing an active speaker embedding tensor. Please re-record your voice sample in Voice Setup.',
+            })
+            return
           }
 
           const result = await gnaniProvider.synthesizeWithSpeakerEmbedding({
@@ -144,9 +152,29 @@ speechRouter.post(
       if (config.NODE_ENV === 'test') {
         audioBytes = generateDeterministicWav(estimatedDuration)
       } else {
-        res.status(502).json({
-          error: 'SPEECH_SYNTHESIS_FAILED',
-          message: err.message || 'Speech generation failed at provider.',
+        console.error('[Speech Synthesis Error]:', err?.message || err)
+        const status = err.status && [400, 401, 403, 404, 429].includes(err.status) ? err.status : 502
+        let errorCode = err.code || 'SPEECH_SYNTHESIS_FAILED'
+        let userMessage = err.message || 'Speech generation failed at provider.'
+
+        if (status === 401) {
+          errorCode = 'GNANI_AUTH_FAILED'
+          userMessage = 'Gnani API authentication failed: Invalid or expired API key.'
+        } else if (status === 403) {
+          errorCode = 'GNANI_FORBIDDEN'
+          userMessage = 'Access forbidden: Your Gnani account does not have entitlement for this model.'
+        } else if (status === 429) {
+          errorCode = 'GNANI_QUOTA_EXCEEDED'
+          userMessage = 'Gnani challenge credit quota exceeded or rate limit reached.'
+        } else if (status === 400) {
+          errorCode = 'GNANI_INVALID_REQUEST'
+          userMessage = `Provider rejected request parameters: ${err.message}`
+        }
+
+        res.status(status).json({
+          error: errorCode,
+          message: userMessage,
+          details: err.providerDetails || undefined,
         })
         return
       }
@@ -167,8 +195,12 @@ speechRouter.post(
         userId
       )
     } catch (uploadErr: any) {
-      // Non-fatal if in mock mode, but log warning
-      console.warn('[Storage Upload Warning]:', uploadErr?.message || uploadErr)
+      console.error('[Storage Upload Error]:', uploadErr?.message || uploadErr)
+      res.status(500).json({
+        error: 'STORAGE_UPLOAD_FAILED',
+        message: `Failed to store synthesized audio in private storage: ${uploadErr.message}`,
+      })
+      return
     }
 
     // 5. Persist asset metadata into database

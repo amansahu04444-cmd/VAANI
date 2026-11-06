@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AudioProvider } from './context/AudioContext'
 import { AppLayout } from './components/layout/AppLayout'
@@ -10,6 +10,7 @@ import { SpeechStudio } from './pages/SpeechStudio'
 import { AudioLibrary } from './pages/AudioLibrary'
 import { Settings } from './pages/Settings'
 import type { AudioAsset, EnrollmentStatus } from './types'
+import { voiceApi } from './lib/api'
 
 const INITIAL_AUDIOS: AudioAsset[] = [
   {
@@ -54,9 +55,20 @@ const INITIAL_AUDIOS: AudioAsset[] = [
 ]
 
 export function App() {
-  const [hasVoiceProfile, setHasVoiceProfile] = useState<boolean>(true) // Set to true by default for rich evaluation preview
+  const [hasVoiceProfile, setHasVoiceProfile] = useState<boolean>(false)
   const [userEmail, setUserEmail] = useState<string>('aman@vaani.ai')
   const [libraryAudios, setLibraryAudios] = useState<AudioAsset[]>(INITIAL_AUDIOS)
+
+  useEffect(() => {
+    voiceApi
+      .getProfile()
+      .then((profile) => {
+        setHasVoiceProfile(Boolean(profile && profile.status === 'ready'))
+      })
+      .catch(() => {
+        // Fall back gracefully
+      })
+  }, [])
 
   const handleAudioGenerated = (newAudio: AudioAsset) => {
     setLibraryAudios((prev) => [newAudio, ...prev])

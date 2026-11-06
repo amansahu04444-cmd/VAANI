@@ -107,7 +107,7 @@ export class GnaniProvider {
     return this.timbreClient.synthesize({
       text: params.text,
       language: params.language || 'hi-IN',
-      model: 'timbre-v2.5',
+      model: 'vachana-vc-v1',
       speed: params.speed || 1.0,
       speaker_embedding: params.speakerEmbedding,
       audio_config: {

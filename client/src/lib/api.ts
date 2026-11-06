@@ -45,7 +45,11 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
     } catch {
       errorJson = { message: response.statusText }
     }
-    throw new Error(errorJson.message || `API request failed with status ${response.status}`)
+    const err: any = new Error(errorJson.message || `API request failed with status ${response.status}`)
+    err.status = response.status
+    err.code = errorJson.error
+    err.details = errorJson.details
+    throw err
   }
 
   return response.json() as Promise<T>
@@ -81,6 +85,9 @@ export const voiceApi = {
   async getProfile(): Promise<UserVoiceProfile | null> {
     try {
       const data = await apiRequest<any>('/voice/me')
+      if (!data || data.status === 'not_enrolled') {
+        return null
+      }
       return {
         id: data.id,
         userId: data.userId,
@@ -94,7 +101,7 @@ export const voiceApi = {
         createdAt: data.createdAt,
       }
     } catch (err: any) {
-      if (err.message && (err.message.includes('404') || err.message.includes('NOT_FOUND'))) {
+      if (err.status === 404 || (err.message && (err.message.includes('404') || err.message.includes('NOT_FOUND') || err.message.includes('No active voice profile')))) {
         return null
       }
       throw err

@@ -92,35 +92,13 @@ export const SpeechStudio: React.FC<SpeechStudioProps> = ({
       setGeneratedAudio(newAsset)
       playUiSound('success')
       if (onAudioGenerated) onAudioGenerated(newAsset)
-    } catch {
-      // Fallback for offline client preview
-      setGenerationProgress(100)
-      const currentLangObj = SUPPORTED_LANGUAGES.find((l) => l.code === selectedLanguage) || SUPPORTED_LANGUAGES[0]
-      const voiceLabel = voiceMode === 'personal' ? 'Enrolled Voice (Aman)' : `Timbre ${selectedStandardVoice}`
-
-      const fallbackAsset: AudioAsset = {
-        id: `aud-${Date.now()}`,
-        userId: 'user-1',
-        title: scriptTitle.trim() || `${currentLangObj.name} Script Announcement`,
-        textPreview: scriptText,
-        languageCode: selectedLanguage,
-        languageName: currentLangObj.name,
-        voiceMode,
-        voiceLabel,
-        durationSeconds: Math.max(6, Math.min(45, Math.round(scriptText.length / 15))),
-        fileSizeBytes: 1024 * 1024,
-        createdAt: new Date().toISOString(),
-      }
-
-      setGeneratedAudio(fallbackAsset)
-      playUiSound('success')
-      if (onAudioGenerated) onAudioGenerated(fallbackAsset)
+    } catch (err: any) {
+      setGenerationProgress(0)
+      setErrorNotice(err.message || 'Speech generation failed. Please check your acoustic parameters and provider connection.')
+      playUiSound('click')
     } finally {
-      setTimeout(() => {
-        setIsGenerating(false)
-        setGenerationStep('')
-        setGenerationProgress(0)
-      }, 500)
+      setIsGenerating(false)
+      setGenerationStep('')
     }
   }
 
