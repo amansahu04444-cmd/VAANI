@@ -36,24 +36,62 @@ app.use(
   })
 )
 
-// Parse allowed client origins from comma-separated configuration
-const allowedOrigins = config.CLIENT_ORIGIN.split(',')
+// Production & Development CORS Configuration
+// Supports production Vercel (vaani-teal.vercel.app), custom domains, localhost, and Vercel preview deploys
+const DEFAULT_ALLOWED_ORIGINS = [
+  'https://vaani-teal.vercel.app',
+  'https://vaani.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:4173',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:4173',
+]
+
+const envConfiguredOrigins = (config.CLIENT_ORIGIN || '')
+  .split(',')
   .map((o) => o.trim())
   .filter(Boolean)
 
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (e.g. mobile apps, curl, Supertest, server-to-server)
-      if (!origin) return callback(null, true)
-      if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
-        return callback(null, true)
-      }
-      return callback(null, false)
-    },
-    credentials: true,
-  })
-)
+export const allowedOriginList = Array.from(new Set([...DEFAULT_ALLOWED_ORIGINS, ...envConfiguredOrigins]))
+
+export function isOriginAllowed(origin: string | undefined): boolean {
+  // Allow requests with no origin (curl, mobile apps, Supertest, server-to-server)
+  if (!origin) return true
+  // Exact match against allowed list
+  if (allowedOriginList.includes(origin)) return true
+  // Dynamic regex matching for Vercel preview deployments (e.g. https://vaani-git-*.vercel.app)
+  if (/^https:\/\/vaani(-[a-z0-9_-]+)?\.vercel\.app$/.test(origin)) return true
+  return false
+}
+
+const corsOptions: cors.CorsOptions = {
+  origin: (origin, callback) => {
+    if (isOriginAllowed(origin)) {
+      // Reflect the specific requesting origin; NEVER use wildcard '*' with credentials: true
+      return callback(null, true)
+    }
+    return callback(null, false)
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: [
+    'Authorization',
+    'Content-Type',
+    'apikey',
+    'x-client-info',
+    'X-Request-Id',
+    'x-custom-header',
+    'Range',
+  ],
+  exposedHeaders: ['Content-Range', 'Accept-Ranges', 'Content-Length', 'X-Request-Id'],
+  optionsSuccessStatus: 204,
+  preflightContinue: false,
+}
+
+app.use(cors(corsOptions))
+app.options('*', cors(corsOptions))
 app.use(express.json({ limit: '25mb' }))
 
 // Public Root Service Identifier (resolves 404 on base domain https://vaani-n3t1.onrender.com/)
@@ -98,7 +136,14 @@ app.use('/api/speech', speechRouter)
 app.use('/api/translation', translationRouter)
 
 // Improved 404 Diagnostic Handler (Step 5)
+// Guarantees CORS headers on 404 responses for allowed origins
 app.use((req: Request, res: Response) => {
+  const origin = req.headers.origin as string | undefined
+  if (origin && isOriginAllowed(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin)
+    res.setHeader('Access-Control-Allow-Credentials', 'true')
+  }
+
   const requestId = (req.headers['x-request-id'] as string) || 'req-unknown'
   const requestedPath = req.originalUrl || req.url
   const method = req.method
@@ -115,7 +160,14 @@ app.use((req: Request, res: Response) => {
 })
 
 // Centralized error handler (Sanitizes errors, never leaks internal stack/secrets)
-app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+// Ensures CORS headers are preserved on 500 error responses
+app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
+  const origin = req.headers.origin as string | undefined
+  if (origin && isOriginAllowed(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin)
+    res.setHeader('Access-Control-Allow-Credentials', 'true')
+  }
+
   console.error('[VAANI API ERROR]:', err?.message || err)
   res.status(err.status || 500).json({
     error: err.code || 'INTERNAL_SERVER_ERROR',

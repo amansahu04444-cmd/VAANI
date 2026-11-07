@@ -69,24 +69,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     try {
       // 1. Primary: Direct Supabase profiles table query (protected by RLS auth.uid() = id)
+      // Use select('*') so queries succeed against existing database schema without triggering
+      // PostgREST 400 Bad Request (PostgreSQL 42703: "column profiles.full_name does not exist").
       const { data: profileRow, error } = await supabase
         .from('profiles')
-        .select('id, email, display_name, full_name')
+        .select('*')
         .eq('id', userId)
         .maybeSingle()
 
       // Guard: Check if user switched accounts while request was in-flight
       if (activeUserIdRef.current !== userId) return
 
-      if (!error && profileRow) {
-        const dbFullName = (profileRow.full_name || '').trim()
+      if (error) {
+        console.warn('[VAANI AuthContext] Supabase profile query notice:', error.message)
+      }
+
+      if (profileRow) {
+        const dbFullName = ((profileRow as any).full_name || '').trim()
         const dbDisplayName = (profileRow.display_name || '').trim()
         const resolvedName = dbFullName || dbDisplayName || metaName || emailPrefix || 'VAANI USER'
 
         setUser({
           id: userId,
           email: profileRow.email || userEmail,
-          fullName: dbFullName || metaName,
+          fullName: dbFullName || dbDisplayName || metaName,
           displayName: dbDisplayName || resolvedName,
           rawUsername: resolvedName,
         })

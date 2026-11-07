@@ -38,6 +38,44 @@ describe('VAANI Production Security & Infrastructure Hardening', () => {
       expect(res.headers['access-control-allow-credentials']).toBe('true')
     })
 
+    it('allows production frontend origin https://vaani-teal.vercel.app', async () => {
+      const res = await request(app)
+        .get('/api/health')
+        .set('Origin', 'https://vaani-teal.vercel.app')
+
+      expect(res.status).toBe(200)
+      expect(res.headers['access-control-allow-origin']).toBe('https://vaani-teal.vercel.app')
+      expect(res.headers['access-control-allow-credentials']).toBe('true')
+      expect(res.headers['access-control-allow-origin']).not.toBe('*')
+    })
+
+    it('handles OPTIONS preflight requests with 204 and correct headers', async () => {
+      const endpoints = ['/api/auth/me', '/api/voice/me', '/api/voice/enroll', '/api/speech/generate', '/api/audio']
+      for (const endpoint of endpoints) {
+        const res = await request(app)
+          .options(endpoint)
+          .set('Origin', 'https://vaani-teal.vercel.app')
+          .set('Access-Control-Request-Method', 'POST')
+          .set('Access-Control-Request-Headers', 'Authorization, Content-Type, apikey, x-client-info')
+
+        expect(res.status).toBe(204)
+        expect(res.headers['access-control-allow-origin']).toBe('https://vaani-teal.vercel.app')
+        expect(res.headers['access-control-allow-credentials']).toBe('true')
+        expect(res.headers['access-control-allow-methods']).toContain('POST')
+        expect(res.headers['access-control-allow-headers']).toContain('Authorization')
+      }
+    })
+
+    it('ensures error and 404 responses contain CORS headers for allowed origins', async () => {
+      const res = await request(app)
+        .get('/api/non-existent-route-for-testing')
+        .set('Origin', 'https://vaani-teal.vercel.app')
+
+      expect(res.status).toBe(404)
+      expect(res.headers['access-control-allow-origin']).toBe('https://vaani-teal.vercel.app')
+      expect(res.headers['access-control-allow-credentials']).toBe('true')
+    })
+
     it('permits requests without an Origin header (curl, mobile, backend-to-backend)', async () => {
       const res = await request(app).get('/api/health')
 

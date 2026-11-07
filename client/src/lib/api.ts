@@ -1,4 +1,5 @@
 import type { AudioAsset, UserVoiceProfile, VoiceMode } from '../types'
+import { supabase } from './supabase'
 
 const TOKEN_KEY = 'vaani_auth_token'
 
@@ -45,7 +46,17 @@ export function clearAuthToken(): void {
 }
 
 async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const token = getAuthToken()
+  let token = getAuthToken()
+  if (!token) {
+    try {
+      const { data } = await supabase.auth.getSession()
+      if (data.session?.access_token) {
+        token = data.session.access_token
+        setAuthToken(token)
+      }
+    } catch {}
+  }
+
   const headers = new Headers(options.headers || {})
 
   if (!headers.has('Authorization') && token) {
@@ -58,6 +69,7 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
   const url = getFullApiUrl(endpoint)
 
   const response = await fetch(url, {
+    credentials: options.credentials || 'include',
     ...options,
     headers,
   })
