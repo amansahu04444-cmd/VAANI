@@ -316,3 +316,4 @@ The following core modules are confirmed active, tested, and strictly required:
 - `providers/gnani/types.ts`: Gnani provider interfaces & supported locales.
 - `providers/gnani/spike.ts`: Developer API key & connectivity verification script.
 - `__tests__/*`: 15 comprehensive automated test suites.
+
