@@ -183,17 +183,6 @@ VAANI/
 │   │   └── server.ts            # Server entrypoint
 │   ├── migrations/              # Supabase PostgreSQL DDL (RLS & 5 tables)
 │   └── tsconfig.json
-│
-└── docs/                        # Complete Phase Documentation & Audits
-    ├── PHASE_0_RECON_AUDIT.md
-    ├── PHASE_1_FRONTEND_DELIVERABLES.md
-    ├── PHASE_2_AUTH_DATABASE_STORAGE.md
-    ├── PHASE_3_GNANI_INTEGRATION_SPIKE.md
-    ├── PHASE_4_TO_7_BACKEND_STUDIO_INTEGRATION.md
-    ├── QA_CHECKLIST.md
-    ├── PROVIDER_CAPABILITY.md
-    ├── DEMO_SCRIPT.md           # 60-second video demo walkthrough
-    └── HACKATHON_SUBMISSION.md   # Official challenge submission & social post
 ```
 
 ---
