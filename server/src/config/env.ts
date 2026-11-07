@@ -8,22 +8,39 @@ const __dirname = path.dirname(__filename)
 dotenv.config({ path: path.resolve(__dirname, '../../.env') })
 dotenv.config()
 
-const envSchema = z.object({
-  PORT: z.coerce.number().default(5000),
-  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
-  CLIENT_ORIGIN: z.string().default('http://localhost:5173'),
-  SUPABASE_URL: z.string().url('SUPABASE_URL must be a valid URL'),
-  SUPABASE_ANON_KEY: z.string().min(1, 'SUPABASE_ANON_KEY is required'),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, 'SUPABASE_SERVICE_ROLE_KEY is required'),
-  SUPABASE_JWT_SECRET: z.string().default('vaani-test-jwt-secret-minimum-32-characters-long'),
-  STORAGE_SIGNED_URL_EXPIRY_SECONDS: z.coerce.number().default(900), // 15 minutes
-  GNANI_API_KEY: z.string().optional(),
-  GNANI_API_BASE_URL: z.string().url().default('https://api.vachana.ai'),
-  GNANI_TTS_MODEL: z.string().default('timbre-v2.5'),
-  GNANI_CUSTOM_VOICE_ENABLED: z.coerce.boolean().default(false),
-  GNANI_TTS_TIMEOUT_MS: z.coerce.number().default(60000), // Default: 60 seconds
-  GNANI_TTS_LONG_TIMEOUT_MS: z.coerce.number().default(120000), // Long audio / voice cloning: up to 120 seconds
-})
+const envSchema = z
+  .object({
+    PORT: z.coerce.number().default(5000),
+    NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+    CLIENT_ORIGIN: z.string().default('http://localhost:5173'),
+    SUPABASE_URL: z.string().url('SUPABASE_URL must be a valid URL'),
+    SUPABASE_ANON_KEY: z.string().min(1, 'SUPABASE_ANON_KEY is required'),
+    SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, 'SUPABASE_SERVICE_ROLE_KEY is required'),
+    SUPABASE_JWT_SECRET: z.string().default('vaani-test-jwt-secret-minimum-32-characters-long'),
+    STORAGE_SIGNED_URL_EXPIRY_SECONDS: z.coerce.number().default(900), // 15 minutes
+    GNANI_API_KEY: z.string().optional(),
+    GNANI_API_BASE_URL: z.string().url().default('https://api.vachana.ai'),
+    GNANI_TTS_MODEL: z.string().default('timbre-v2.5'),
+    GNANI_CUSTOM_VOICE_ENABLED: z.coerce.boolean().default(false),
+    GNANI_TTS_TIMEOUT_MS: z.coerce.number().default(60000), // Default: 60 seconds
+    GNANI_TTS_LONG_TIMEOUT_MS: z.coerce.number().default(120000), // Long audio / voice cloning: up to 120 seconds
+  })
+  .refine(
+    (data) => {
+      if (data.NODE_ENV === 'production') {
+        return (
+          Boolean(data.SUPABASE_JWT_SECRET) &&
+          data.SUPABASE_JWT_SECRET !== 'vaani-test-jwt-secret-minimum-32-characters-long'
+        )
+      }
+      return true
+    },
+    {
+      message:
+        'CRITICAL SECURITY CONFIGURATION: SUPABASE_JWT_SECRET must be configured with a unique, secure secret in production. Default test secret is strictly prohibited.',
+      path: ['SUPABASE_JWT_SECRET'],
+    }
+  )
 
 export const config = envSchema.parse(process.env)
 

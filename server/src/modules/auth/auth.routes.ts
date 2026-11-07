@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express'
 import { requireAuth } from '../../middleware/auth.js'
+import { rateLimiter } from '../../middleware/rateLimit.js'
 import { dbRepo } from '../../db/repository.js'
 import { supabaseAdmin } from '../../db/supabase.js'
 
@@ -40,24 +41,33 @@ authRouter.get('/me', requireAuth, async (req: Request, res: Response) => {
  * without exposing service_role keys, disabling RLS, or bypassing Supabase Auth.
  * Client immediately authenticates via standard supabase.auth.signInWithPassword.
  */
-authRouter.post('/signup', async (req: Request, res: Response): Promise<any> => {
-  const { email, password, fullName } = req.body || {}
+authRouter.post(
+  '/signup',
+  rateLimiter({
+    windowMs: 15 * 60 * 1000,
+    maxRequests: 5,
+    keyPrefix: 'auth_signup',
+    message: 'Too many signup attempts. Please try again after 15 minutes.',
+  }),
+  async (req: Request, res: Response): Promise<any> => {
+    const { email, password, fullName } = req.body || {}
 
-  if (!email || typeof email !== 'string' || !email.includes('@')) {
-    return res.status(400).json({ error: 'Valid email address is required.' })
-  }
+    if (!email || typeof email !== 'string' || !email.includes('@')) {
+      return res.status(400).json({ error: 'Valid email address is required.' })
+    }
 
-  if (!password || typeof password !== 'string' || password.length < 6) {
-    return res.status(400).json({ error: 'Password must be at least 6 characters.' })
-  }
+    if (!password || typeof password !== 'string' || password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters.' })
+    }
 
-  const name = typeof fullName === 'string' && fullName.trim() ? fullName.trim() : email.split('@')[0]
+    const rawName = typeof fullName === 'string' && fullName.trim() ? fullName.trim() : email.split('@')[0]
+    const name = rawName.replace(/[\x00-\x1F\x7F<>]/g, '').slice(0, 100)
 
-  console.log('[AuthRoutes] Processing Studio user provisioning request', {
-    email: maskEmail(email),
-    nameLength: name.length,
-    timestamp: new Date().toISOString(),
-  })
+    console.log('[AuthRoutes] Processing Studio user provisioning request', {
+      email: maskEmail(email),
+      nameLength: name.length,
+      timestamp: new Date().toISOString(),
+    })
 
   try {
     const { data, error } = await supabaseAdmin.auth.admin.createUser({
@@ -109,12 +119,22 @@ authRouter.post('/signup', async (req: Request, res: Response): Promise<any> => 
  * Authenticated endpoint for active user session to update or sync profile.
  * Fulfills Task 8: Profile creation/updates occur ONLY after successful authentication.
  */
-authRouter.post('/sync-profile', requireAuth, async (req: Request, res: Response): Promise<any> => {
-  const userId = req.user!.id
-  const email = req.user!.email
-  const { fullName, displayName } = req.body || {}
+authRouter.post(
+  '/sync-profile',
+  requireAuth,
+  rateLimiter({
+    windowMs: 60 * 1000,
+    maxRequests: 30,
+    keyPrefix: 'auth_sync',
+    message: 'Too many profile update requests. Please try again shortly.',
+  }),
+  async (req: Request, res: Response): Promise<any> => {
+    const userId = req.user!.id
+    const email = req.user!.email
+    const { fullName, displayName } = req.body || {}
 
-  const name = displayName || fullName || email.split('@')[0]
+    const rawName = displayName || fullName || email.split('@')[0]
+    const name = String(rawName).replace(/[\x00-\x1F\x7F<>]/g, '').slice(0, 100)
 
   console.log('[AuthRoutes] Synchronizing profile for authenticated user', {
     userId,

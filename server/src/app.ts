@@ -12,10 +12,28 @@ import { translationRouter } from './modules/translation/translation.routes.js'
 export const app = express()
 
 // Security and parser middleware
-app.use(helmet())
+// Helmet configured with cross-origin CORP to enable HTML5 audio streaming from Vercel to Render
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+  })
+)
+
+// Parse allowed client origins from comma-separated configuration
+const allowedOrigins = config.CLIENT_ORIGIN.split(',')
+  .map((o) => o.trim())
+  .filter(Boolean)
+
 app.use(
   cors({
-    origin: config.CLIENT_ORIGIN,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (e.g. mobile apps, curl, Supertest, server-to-server)
+      if (!origin) return callback(null, true)
+      if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+        return callback(null, true)
+      }
+      return callback(null, false)
+    },
     credentials: true,
   })
 )

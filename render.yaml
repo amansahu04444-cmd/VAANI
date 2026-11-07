@@ -1,0 +1,39 @@
+# ==============================================================================
+# VAANI — Render Blueprint Deployment Configuration
+# Backend Web Service: Express + TypeScript + Node 22
+# Target: Production API Deployment
+# ==============================================================================
+
+services:
+  - type: web
+    name: vaani-api
+    runtime: node
+    plan: starter
+    region: singapore
+    rootDir: server
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000
+      - key: CLIENT_ORIGIN
+        value: https://vaani.vercel.app
+      # Secrets configured securely via Render Dashboard (sync: false)
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+      - key: GNANI_API_KEY
+        sync: false
+      - key: GNANI_TOKEN
+        sync: false
+      - key: GNANI_ACCESS_TOKEN
+        sync: false
+      - key: GNANI_TTS_TIMEOUT_MS
+        value: 120000

@@ -2,6 +2,25 @@ import type { AudioAsset, UserVoiceProfile, VoiceMode } from '../types'
 
 const TOKEN_KEY = 'vaani_auth_token'
 
+const API_BASE_URL = (
+  (import.meta.env.VITE_API_BASE_URL as string | undefined) ||
+  (import.meta.env.VITE_API_URL as string | undefined) ||
+  ''
+).replace(/\/+$/, '')
+
+/**
+ * Resolves API endpoints against optional custom backend origin (VITE_API_URL)
+ * or defaults to relative '/api' path.
+ */
+export function getFullApiUrl(endpoint: string): string {
+  if (endpoint.startsWith('http://') || endpoint.startsWith('https://')) {
+    return endpoint
+  }
+  const cleanPath = endpoint.startsWith('/') ? endpoint : `/${endpoint}`
+  const apiPath = cleanPath.startsWith('/api') ? cleanPath : `/api${cleanPath}`
+  return `${API_BASE_URL}${apiPath}`
+}
+
 export function getAuthToken(): string | null {
   return localStorage.getItem(TOKEN_KEY)
 }
@@ -25,7 +44,7 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
     headers.set('Content-Type', 'application/json')
   }
 
-  const url = endpoint.startsWith('http') ? endpoint : `/api${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`
+  const url = getFullApiUrl(endpoint)
 
   const response = await fetch(url, {
     ...options,
@@ -288,7 +307,7 @@ export const audioApi = {
       : `vaani-audio-${assetId}.wav`
 
     try {
-      const response = await fetch(`/api/audio/${assetId}/download`, {
+      const response = await fetch(getFullApiUrl(`/audio/${assetId}/download`), {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       })
       if (!response.ok) {
