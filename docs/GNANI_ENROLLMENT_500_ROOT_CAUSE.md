@@ -168,3 +168,4 @@ Test Files  11 passed (11)
 - **Client Build (`tsc -b && vite build`):** Exit code `0` (clean production bundle).
 - **Client Linter (`oxlint`):** `0 warnings, 0 errors` across 57 files.
 - **Server Build (`tsc`):** Exit code `0` (clean TypeScript compilation).
+

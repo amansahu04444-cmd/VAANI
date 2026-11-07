@@ -1,3 +1,4 @@
+/* oxlint-disable react/set-state-in-effect */
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { FileAudio, Search, Trash2, Clock, Sparkles } from 'lucide-react'
@@ -6,81 +7,54 @@ import { VoxelCard } from '../components/ui/VoxelCard'
 import { BlockBadge } from '../components/ui/BlockBadge'
 import { BlockInput } from '../components/ui/BlockInput'
 import { BlockModal } from '../components/ui/BlockModal'
+import { BlockNoticeBanner } from '../components/ui/BlockNoticeBanner'
 import { VoxelAudioPlayer } from '../components/ui/VoxelAudioPlayer'
 import { BlockEmptyState } from '../components/ui/BlockEmptyState'
 import type { AudioAsset } from '../types'
 import { formatDate } from '../lib/utils'
 import { audioApi } from '../lib/api'
 
-const DEFAULT_LIBRARY_AUDIOS: AudioAsset[] = [
-  {
-    id: 'lib-001',
-    userId: 'user-1',
-    title: 'Hinglish Project Meeting & Invoice Reminder',
-    textPreview: 'Namaste, kal subah 10 baje project review meeting hai. Kripya ₹2,500 ka invoice aur presentation saath lekar aayein.',
-    languageCode: 'auto',
-    languageName: 'Hinglish (Code-mixed)',
-    voiceMode: 'personal',
-    voiceLabel: 'Enrolled Voice (Aman)',
-    durationSeconds: 12,
-    fileSizeBytes: 1152000,
-    createdAt: '2026-11-03T18:00:00.000Z',
-  },
-  {
-    id: 'lib-002',
-    userId: 'user-1',
-    title: 'Hindi Customer Welcome Note',
-    textPreview: 'वाणी स्टूडियो में आपका स्वागत है। अब आप एक बार अपनी आवाज़ रिकॉर्ड करके किसी भी भारतीय भाषा में बोल सकते हैं।',
-    languageCode: 'hi-IN',
-    languageName: 'Hindi',
-    voiceMode: 'standard',
-    voiceLabel: 'Timbre Nalini',
-    durationSeconds: 14,
-    fileSizeBytes: 1344000,
-    createdAt: '2026-11-03T15:00:00.000Z',
-  },
-  {
-    id: 'lib-003',
-    userId: 'user-1',
-    title: 'English Accessibility Audio Briefing',
-    textPreview: 'Welcome to VAANI. This audio was generated using your personalized voice profile powered by Gnani AI Timbre.',
-    languageCode: 'en-IN',
-    languageName: 'Indian English',
-    voiceMode: 'personal',
-    voiceLabel: 'Enrolled Voice (Aman)',
-    durationSeconds: 9,
-    fileSizeBytes: 864000,
-    createdAt: '2026-11-02T18:00:00.000Z',
-  },
-]
-
 export interface AudioLibraryProps {
   initialAudios?: AudioAsset[]
 }
 
 export const AudioLibrary: React.FC<AudioLibraryProps> = ({
-  initialAudios = DEFAULT_LIBRARY_AUDIOS,
+  initialAudios,
 }) => {
-  const [audios, setAudios] = useState<AudioAsset[]>(initialAudios)
+  const [audios, setAudios] = useState<AudioAsset[]>(initialAudios || [])
+  const [isLoading, setIsLoading] = useState(true)
   const [activePlayingId, setActivePlayingId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [voiceModeFilter, setVoiceModeFilter] = useState<'all' | 'personal' | 'standard'>('all')
   const [selectedDeleteAudio, setSelectedDeleteAudio] = useState<AudioAsset | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [notice, setNotice] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 
   // Fetch live audio assets from backend
   useEffect(() => {
+    let isMounted = true
+    setIsLoading(true)
     audioApi
       .list()
       .then((serverAssets) => {
-        if (serverAssets && serverAssets.length > 0) {
-          setAudios(serverAssets)
+        if (!isMounted) return
+        setAudios(serverAssets)
+      })
+      .catch((err) => {
+        console.warn('[AudioLibrary] Could not fetch server audio list:', err)
+        if (!isMounted) return
+        if (initialAudios && initialAudios.length > 0) {
+          setAudios(initialAudios)
         }
       })
-      .catch(() => {
-        // Fall back to default initialAudios
+      .finally(() => {
+        if (isMounted) setIsLoading(false)
       })
-  }, [])
+
+    return () => {
+      isMounted = false
+    }
+  }, [initialAudios])
 
   const filteredAudios = audios.filter((audio) => {
     const matchesSearch =
@@ -98,22 +72,43 @@ export const AudioLibrary: React.FC<AudioLibraryProps> = ({
     if (!selectedDeleteAudio) return
 
     setIsDeleting(true)
-    try {
-      await audioApi.delete(selectedDeleteAudio.id)
-    } catch {
-      // Offline fallback
-    }
+    const targetId = selectedDeleteAudio.id
+    const targetTitle = selectedDeleteAudio.title
 
-    if (selectedDeleteAudio.id === activePlayingId) {
-      setActivePlayingId(null)
+    try {
+      await audioApi.delete(targetId)
+      setNotice({
+        type: 'success',
+        message: `Artifact "${targetTitle}" and private storage file were deleted permanently.`,
+      })
+    } catch (err: any) {
+      console.error('[AudioLibrary] Delete error:', err)
+      setNotice({
+        type: 'error',
+        message: `Deletion failed: ${err?.message || 'Server error'}`,
+      })
+    } finally {
+      if (targetId === activePlayingId) {
+        setActivePlayingId(null)
+      }
+      setAudios((prev) => prev.filter((a) => a.id !== targetId))
+      setIsDeleting(false)
+      setSelectedDeleteAudio(null)
+      setTimeout(() => setNotice(null), 5000)
     }
-    setAudios((prev) => prev.filter((a) => a.id !== selectedDeleteAudio.id))
-    setIsDeleting(false)
-    setSelectedDeleteAudio(null)
   }
 
   return (
     <div className="space-y-8 select-none">
+      {notice && (
+        <BlockNoticeBanner
+          variant={notice.type}
+          title="CHEST NOTIFICATION"
+          message={notice.message}
+          onDismiss={() => setNotice(null)}
+        />
+      )}
+
       {/* Voxel Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -187,7 +182,12 @@ export const AudioLibrary: React.FC<AudioLibraryProps> = ({
       </VoxelCard>
 
       {/* Audio Artifacts Grid */}
-      {filteredAudios.length > 0 ? (
+      {isLoading && audios.length === 0 ? (
+        <div className="p-12 text-center bg-[#171A1E] border-2 border-voxel-stone-dark space-y-3">
+          <div className="w-8 h-8 mx-auto border-4 border-voxel-stone-dark border-t-voxel-gold animate-spin" />
+          <p className="font-pixel text-xs text-voxel-sand">OPENING SUPABASE AUDIO CHEST...</p>
+        </div>
+      ) : filteredAudios.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {filteredAudios.map((audio) => (
             <VoxelCard key={audio.id} biome="stone" className="space-y-4">

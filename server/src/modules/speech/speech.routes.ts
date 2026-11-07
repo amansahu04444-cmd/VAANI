@@ -5,20 +5,33 @@ import { config } from '../../config/env.js'
 import { requireAuth } from '../../middleware/auth.js'
 import { validateBody, validateParams } from '../../middleware/validate.js'
 import { rateLimiter } from '../../middleware/rateLimit.js'
-import { dbRepo, isUuid, AudioAssetRecord } from '../../db/repository.js'
+import { dbRepo, isUuid, AudioAssetRecord, SpeechJobRecord } from '../../db/repository.js'
 import { gnaniProvider } from '../../providers/gnani/index.js'
 import { SUPPORTED_LOCALES, SupportedLocale } from '../../providers/gnani/types.js'
 import { StorageService } from '../storage/storage.service.js'
 import { ensureValidWavBuffer, inspectAudioBuffer } from '../audio/audio.utils.js'
 import { evaluateVoiceProfile } from '../voice/voice.service.js'
+import { LanguageDetectionService, translationService } from '../translation/index.js'
 
 export const speechRouter = Router()
 
 const generateSpeechSchema = z.object({
   text: z.string().min(1, 'Script cannot be empty').max(1000, 'Script exceeds 1,000 character limit'),
+  translatedText: z.string().max(1500).optional(),
+  sourceLanguage: z.string().optional(),
   title: z.string().max(100).optional(),
   targetLanguage: z.enum(SUPPORTED_LOCALES).default('hi-IN'),
   voiceMode: z.enum(['personal', 'standard']).default('standard'),
+  standardVoiceId: z.string().default('Nalini'),
+  speed: z.number().min(0.85).max(1.15).default(1.0),
+})
+
+const demoSpeechSchema = z.object({
+  text: z.string().min(1, 'Script cannot be empty').max(300, 'Demo script exceeds 300 character limit'),
+  translatedText: z.string().max(600).optional(),
+  sourceLanguage: z.string().optional(),
+  title: z.string().max(100).optional(),
+  targetLanguage: z.enum(SUPPORTED_LOCALES).default('hi-IN'),
   standardVoiceId: z.string().default('Nalini'),
   speed: z.number().min(0.85).max(1.15).default(1.0),
 })
@@ -74,7 +87,36 @@ speechRouter.post(
   validateBody(generateSpeechSchema),
   async (req: Request, res: Response) => {
     const userId = req.user!.id
-    const { text, title, targetLanguage, voiceMode, standardVoiceId, speed } = req.body
+    const { text, translatedText, sourceLanguage, title, targetLanguage, voiceMode, standardVoiceId, speed } = req.body
+
+    // 0. Language Detection & Multilingual Translation Pipeline
+    let detectedSource = sourceLanguage
+    if (!detectedSource || detectedSource === 'auto') {
+      const detection = LanguageDetectionService.detectLanguage(text)
+      detectedSource = detection.detectedLanguage
+    }
+
+    let textToSynthesize = (translatedText || '').trim()
+    if (!textToSynthesize) {
+      const sourceShort = LanguageDetectionService.toShortIsoCode(detectedSource)
+      const targetShort = LanguageDetectionService.toShortIsoCode(targetLanguage)
+
+      if (sourceShort !== targetShort) {
+        try {
+          const translationResult = await translationService.translateScript({
+            text,
+            sourceLanguage: detectedSource,
+            targetLanguage,
+          })
+          textToSynthesize = translationResult.translatedText
+        } catch (tErr: any) {
+          console.warn('[SpeechRoutes] Auto-translation fallback notice:', tErr?.message || tErr)
+          textToSynthesize = text
+        }
+      } else {
+        textToSynthesize = text
+      }
+    }
 
     const jobId = isUuid(userId) ? crypto.randomUUID() : `job-${Date.now()}`
     const assetId = isUuid(userId) ? crypto.randomUUID() : `aud-${Date.now()}`
@@ -115,13 +157,13 @@ speechRouter.post(
 
     // 2. Synthesize speech (real Gnani Timbre call if API key present, or fallback fixture)
     let audioBytes: Buffer
-    const estimatedDuration = Math.max(3, Math.min(60, Math.round(text.length / 14)))
+    const estimatedDuration = Math.max(3, Math.min(60, Math.round(textToSynthesize.length / 14)))
 
     try {
       if (process.env.GNANI_API_KEY && config.NODE_ENV !== 'test') {
         if (voiceMode === 'personal') {
           const result = await gnaniProvider.synthesizeWithSpeakerEmbedding({
-            text,
+            text: textToSynthesize,
             language: targetLanguage as SupportedLocale,
             speakerEmbedding: personalEmbedding,
             speed,
@@ -129,7 +171,7 @@ speechRouter.post(
           audioBytes = result.audioBuffer
         } else {
           const result = await gnaniProvider.synthesizeWithStandardVoice({
-            text,
+            text: textToSynthesize,
             language: targetLanguage as SupportedLocale,
             voice: standardVoiceId,
             speed,
@@ -144,35 +186,45 @@ speechRouter.post(
         }
       }
     } catch (err: any) {
-      if (config.NODE_ENV === 'test') {
-        audioBytes = generateDeterministicWav(estimatedDuration)
-      } else {
-        console.error('[Speech Synthesis Error]:', err?.message || err)
-        const status = err.status && [400, 401, 403, 404, 429].includes(err.status) ? err.status : 502
-        let errorCode = err.code || 'SPEECH_SYNTHESIS_FAILED'
-        let userMessage = err.message || 'Speech generation failed at provider.'
+      console.error('[Speech Synthesis Error]:', err?.message || err)
+      const status =
+        err.status && [400, 401, 403, 404, 429, 502, 504].includes(err.status)
+          ? err.status
+          : err.code === 'GNANI_TIMEOUT'
+          ? 504
+          : 502
+      let errorCode = err.code || 'SPEECH_SYNTHESIS_FAILED'
+      let userMessage = err.message || 'Speech generation failed at provider.'
 
-        if (status === 401) {
-          errorCode = 'GNANI_AUTH_FAILED'
-          userMessage = 'Gnani API authentication failed: Invalid or expired API key.'
-        } else if (status === 403) {
-          errorCode = 'GNANI_FORBIDDEN'
-          userMessage = 'Access forbidden: Your Gnani account does not have entitlement for this model.'
-        } else if (status === 429) {
-          errorCode = 'GNANI_QUOTA_EXCEEDED'
-          userMessage = 'Gnani challenge credit quota exceeded or rate limit reached.'
-        } else if (status === 400) {
-          errorCode = 'GNANI_INVALID_REQUEST'
-          userMessage = `Provider rejected request parameters: ${err.message}`
-        }
-
-        res.status(status).json({
-          error: errorCode,
-          message: userMessage,
-          details: err.providerDetails || undefined,
-        })
-        return
+      if (err.code === 'GNANI_TIMEOUT') {
+        errorCode = 'GNANI_TIMEOUT'
+        userMessage = err.message
+      } else if (err.code === 'GNANI_PROVIDER_TIMEOUT') {
+        errorCode = 'GNANI_PROVIDER_TIMEOUT'
+        userMessage = err.message
+      } else if (err.code === 'GNANI_NETWORK_ERROR') {
+        errorCode = 'GNANI_NETWORK_ERROR'
+        userMessage = err.message
+      } else if (status === 401) {
+        errorCode = 'GNANI_AUTH_FAILED'
+        userMessage = 'Gnani API authentication failed: Invalid or expired API key.'
+      } else if (status === 403) {
+        errorCode = 'GNANI_FORBIDDEN'
+        userMessage = 'Access forbidden: Your Gnani account does not have entitlement for this model.'
+      } else if (status === 429) {
+        errorCode = 'GNANI_QUOTA_EXCEEDED'
+        userMessage = 'Gnani challenge credit quota exceeded or rate limit reached.'
+      } else if (status === 400) {
+        errorCode = 'GNANI_INVALID_REQUEST'
+        userMessage = `Provider rejected request parameters: ${err.message}`
       }
+
+      res.status(status).json({
+        error: errorCode,
+        message: userMessage,
+        details: err.providerDetails || undefined,
+      })
+      return
     }
 
     // 3. Ensure valid browser-playable WAV header (repairs streaming 0xFFFFFFFF sizes)
@@ -193,12 +245,35 @@ speechRouter.post(
       console.error('[Storage Upload Error]:', uploadErr?.message || uploadErr)
       res.status(500).json({
         error: 'STORAGE_UPLOAD_FAILED',
-        message: `Failed to store synthesized audio in private storage: ${uploadErr.message}`,
+        message: `Audio generated successfully, but saving failed. Storage upload error: ${uploadErr.message}`,
       })
       return
     }
 
-    // 5. Persist asset metadata into database
+    // 5. Persist speech job and asset metadata into database
+    const speechJob: SpeechJobRecord = {
+      id: jobId,
+      user_id: userId,
+      voice_profile_id: voiceProfileId,
+      input_text: text,
+      source_language: detectedSource,
+      target_language: targetLanguage,
+      provider_model: voiceMode === 'personal' ? 'vachana-vc-v1' : 'timbre-v2.5',
+      voice_mode: voiceMode,
+      status: 'completed',
+      provider_request_id: null,
+      duration_ms: exactDurationMs,
+      error_code: null,
+      created_at: new Date().toISOString(),
+      completed_at: new Date().toISOString(),
+    }
+
+    try {
+      await dbRepo.saveSpeechJob(speechJob)
+    } catch (sjErr: any) {
+      console.warn('[SpeechRoutes] Non-fatal speech job insert notice:', sjErr?.message || sjErr)
+    }
+
     const audioAsset: AudioAssetRecord = {
       id: assetId,
       user_id: userId,
@@ -207,12 +282,35 @@ speechRouter.post(
       mime_type: 'audio/wav',
       file_size: validWav.length,
       duration_ms: exactDurationMs,
-      title: title || `${targetLanguage} Speech Output`,
+      title: title || `${LanguageDetectionService.getLanguageName(targetLanguage)} Speech Output`,
       created_at: new Date().toISOString(),
       deleted_at: null,
+      input_text: textToSynthesize,
+      original_text: text,
+      translated_text: textToSynthesize,
+      target_language: targetLanguage,
+      source_language: detectedSource,
+      voice_mode: voiceMode,
     }
 
-    await dbRepo.saveAudioAsset(audioAsset)
+    try {
+      await dbRepo.saveAudioAsset(audioAsset)
+    } catch (dbErr: any) {
+      console.error('[Database Persistence Error]:', dbErr?.message || dbErr)
+      // Rollback uploaded storage object to prevent orphaned files
+      try {
+        await StorageService.deleteObject('generated-audio', objectKey, userId)
+      } catch (delErr) {
+        console.warn('[Storage Cleanup Warning]: Failed to delete orphaned file after DB failure:', delErr)
+      }
+
+      res.status(500).json({
+        error: 'DB_PERSISTENCE_FAILED',
+        message: 'Audio generated successfully, but saving failed. Database record could not be created.',
+        details: dbErr?.message || 'Database insert error',
+      })
+      return
+    }
 
     // 6. Generate signed playback URL (15-minute expiration)
     const { signedUrl, expiresAt } = await StorageService.getSignedUrl(
@@ -228,8 +326,12 @@ speechRouter.post(
       asset: {
         id: audioAsset.id,
         title: audioAsset.title,
-        textPreview: text,
+        originalText: text,
+        translatedText: textToSynthesize,
+        textPreview: textToSynthesize,
+        sourceLanguage: detectedSource,
         languageCode: targetLanguage,
+        languageName: LanguageDetectionService.getLanguageName(targetLanguage),
         voiceMode,
         voiceLabel,
         durationSeconds: Math.max(1, Math.round(exactDurationMs / 1000)),
@@ -239,6 +341,109 @@ speechRouter.post(
         expiresAt,
         createdAt: audioAsset.created_at,
       },
+    })
+  }
+)
+
+/**
+ * POST /api/speech/demo-generate
+ * Public demo speech synthesis: does NOT require authentication or user session.
+ * Uses only standard Timbre voices; strictly isolated with zero storage or DB mutations.
+ */
+speechRouter.post(
+  '/demo-generate',
+  rateLimiter({ windowMs: 60 * 1000, maxRequests: 10, keyPrefix: 'demo_speech' }),
+  validateBody(demoSpeechSchema),
+  async (req: Request, res: Response) => {
+    const { text, translatedText, sourceLanguage, title, targetLanguage, standardVoiceId, speed } = req.body
+
+    let detectedSource = sourceLanguage
+    if (!detectedSource || detectedSource === 'auto') {
+      const detection = LanguageDetectionService.detectLanguage(text)
+      detectedSource = detection.detectedLanguage
+    }
+
+    let textToSynthesize = (translatedText || '').trim()
+    if (!textToSynthesize) {
+      const sourceShort = LanguageDetectionService.toShortIsoCode(detectedSource)
+      const targetShort = LanguageDetectionService.toShortIsoCode(targetLanguage)
+
+      if (sourceShort !== targetShort) {
+        try {
+          const translationResult = await translationService.translateScript({
+            text,
+            sourceLanguage: detectedSource,
+            targetLanguage,
+          })
+          textToSynthesize = translationResult.translatedText
+        } catch {
+          textToSynthesize = text
+        }
+      } else {
+        textToSynthesize = text
+      }
+    }
+
+    const estimatedDuration = Math.max(2, Math.min(30, Math.round(textToSynthesize.length / 14)))
+    let audioBytes: Buffer
+
+    try {
+      if (process.env.GNANI_API_KEY && config.NODE_ENV !== 'test') {
+        const result = await gnaniProvider.synthesizeWithStandardVoice({
+          text: textToSynthesize,
+          language: targetLanguage as SupportedLocale,
+          voice: standardVoiceId,
+          speed,
+        })
+        audioBytes = result.audioBuffer
+      } else {
+        audioBytes = generateDeterministicWav(estimatedDuration)
+      }
+    } catch (err: any) {
+      console.error('[Demo Speech Synthesis Error]:', err?.message || err)
+      const status =
+        err.status && [400, 401, 403, 404, 429, 502, 504].includes(err.status)
+          ? err.status
+          : err.code === 'GNANI_TIMEOUT'
+          ? 504
+          : 502
+      res.status(status).json({
+        error: err.code || 'SPEECH_SYNTHESIS_FAILED',
+        message: err.message || 'Demo speech generation failed at provider.',
+      })
+      return
+    }
+
+    const validWav = ensureValidWavBuffer(audioBytes)
+    const inspection = inspectAudioBuffer(validWav)
+    const exactDuration = inspection.durationMs > 0 ? Math.round(inspection.durationMs / 1000) : estimatedDuration
+
+    const assetId = `demo-${Date.now()}`
+    const base64Audio = validWav.toString('base64')
+
+    res.status(200).json({
+      success: true,
+      isDemo: true,
+      audioBase64: base64Audio,
+      durationSeconds: exactDuration,
+      asset: {
+        id: assetId,
+        userId: 'demo-visitor',
+        title: title || `${LanguageDetectionService.getLanguageName(targetLanguage)} Demo Audio`,
+        originalText: text,
+        translatedText: textToSynthesize,
+        textPreview: textToSynthesize,
+        languageCode: targetLanguage,
+        languageName: LanguageDetectionService.getLanguageName(targetLanguage),
+        voiceMode: 'standard',
+        voiceLabel: `Timbre ${standardVoiceId} (Demo)`,
+        durationSeconds: exactDuration,
+        fileSizeBytes: validWav.length,
+        createdAt: new Date().toISOString(),
+        audioBase64: base64Audio,
+        mimeType: 'audio/wav',
+      },
+      notice: 'Generated in VAANI Demo Mode. Audio is for preview and not saved to a private library.',
     })
   }
 )

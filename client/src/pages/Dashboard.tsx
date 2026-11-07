@@ -9,6 +9,7 @@ import { VoxelAudioPlayer } from '../components/ui/VoxelAudioPlayer'
 import { CubeIllustration } from '../components/ui/CubeIllustration'
 import { VoiceCore } from '../components/ui/VoiceCore'
 import { PixelDivider } from '../components/ui/PixelDivider'
+import { useAuth } from '../context/AuthContext'
 import type { AudioAsset, VoiceEnrollmentState } from '../types'
 import { formatDate } from '../lib/utils'
 
@@ -21,7 +22,7 @@ const DEFAULT_RECENT_AUDIOS: AudioAsset[] = [
     languageCode: 'auto',
     languageName: 'Hinglish (Code-mixed)',
     voiceMode: 'personal',
-    voiceLabel: 'Enrolled Voice (Aman)',
+    voiceLabel: 'Enrolled Voice',
     durationSeconds: 11,
     fileSizeBytes: 1056400,
     createdAt: '2026-11-03T18:00:00.000Z',
@@ -52,6 +53,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   voiceStatus,
   recentAudios = DEFAULT_RECENT_AUDIOS,
 }) => {
+  const { user, isProfileLoading } = useAuth()
   const isReady = voiceStatus === 'READY' || (hasVoiceProfile && !voiceStatus)
   const isMissingTensor = voiceStatus === 'EMBEDDING_MISSING'
   return (
@@ -129,7 +131,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <VoiceCore status={isReady ? 'ready' : 'not_enrolled'} size={34} />
             <div>
               <h4 className="text-sm font-pixel text-voxel-cloud">
-                {isReady ? 'AMAN SHARMA' : isMissingTensor ? 'TENSOR MISSING' : 'NO PROFILE'}
+                {isReady ? (
+                  isProfileLoading && !user?.rawUsername ? (
+                    <span className="animate-pulse text-voxel-stone-light">...</span>
+                  ) : (
+                    (user?.rawUsername || (user?.email ? user.email.split('@')[0] : 'VAANI USER')).toUpperCase()
+                  )
+                ) : isMissingTensor ? (
+                  'TENSOR MISSING'
+                ) : (
+                  'NO PROFILE'
+                )}
               </h4>
               <p className="text-[10px] font-mono text-voxel-stone-light">
                 {isReady ? '768-dim Vector Active' : isMissingTensor ? 'Re-recording Required' : 'Standard Voices Only'}

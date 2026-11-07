@@ -1,6 +1,8 @@
+/* oxlint-disable react/set-state-in-effect */
 import React, { useState, useEffect, useCallback } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AudioProvider } from './context/AudioContext'
+import { AuthProvider, useAuth } from './context/AuthContext'
 import { AppLayout } from './components/layout/AppLayout'
 import { Landing } from './pages/Landing'
 import { Auth } from './pages/Auth'
@@ -10,58 +12,81 @@ import { SpeechStudio } from './pages/SpeechStudio'
 import { AudioLibrary } from './pages/AudioLibrary'
 import { Settings } from './pages/Settings'
 import type { AudioAsset, EnrollmentStatus, VoiceEnrollmentState } from './types'
-import { voiceApi } from './lib/api'
+import { voiceApi, audioApi } from './lib/api'
 
-const INITIAL_AUDIOS: AudioAsset[] = [
-  {
-    id: 'aud-001',
-    userId: 'user-1',
-    title: 'Hinglish Project Meeting & Invoice Reminder',
-    textPreview: 'Namaste, kal subah 10 baje project review meeting hai. Kripya ₹2,500 ka invoice aur presentation saath lekar aayein.',
-    languageCode: 'auto',
-    languageName: 'Hinglish (Code-mixed)',
-    voiceMode: 'personal',
-    voiceLabel: 'Enrolled Voice (Aman)',
-    durationSeconds: 12,
-    fileSizeBytes: 1152000,
-    createdAt: '2026-11-03T18:00:00.000Z',
-  },
-  {
-    id: 'aud-002',
-    userId: 'user-1',
-    title: 'Hindi Customer Welcome Note',
-    textPreview: 'वाणी स्टूडियो में आपका स्वागत है। अब आप एक बार अपनी आवाज़ रिकॉर्ड करके किसी भी भारतीय भाषा में बोल सकते हैं।',
-    languageCode: 'hi-IN',
-    languageName: 'Hindi',
-    voiceMode: 'standard',
-    voiceLabel: 'Timbre Nalini',
-    durationSeconds: 14,
-    fileSizeBytes: 1344000,
-    createdAt: '2026-11-03T15:00:00.000Z',
-  },
-  {
-    id: 'aud-003',
-    userId: 'user-1',
-    title: 'English Accessibility Audio Briefing',
-    textPreview: 'Welcome to VAANI. This audio was generated using your personalized voice profile powered by Gnani AI Timbre.',
-    languageCode: 'en-IN',
-    languageName: 'Indian English',
-    voiceMode: 'personal',
-    voiceLabel: 'Enrolled Voice (Aman)',
-    durationSeconds: 9,
-    fileSizeBytes: 864000,
-    createdAt: '2026-11-02T18:00:00.000Z',
-  },
-]
+/**
+ * Route protection wrapper: ensures only authenticated users can access private routes
+ */
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isLoading } = useAuth()
+  const location = useLocation()
 
-export function App() {
+  if (isLoading) {
+    return (
+      <div className="min-h-[50vh] flex flex-col items-center justify-center gap-3">
+        <div className="w-8 h-8 border-4 border-voxel-stone-dark border-t-voxel-grass animate-spin" />
+        <span className="font-pixel text-xs text-voxel-sand">LOADING VAULT SESSION...</span>
+      </div>
+    )
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/auth?mode=login" state={{ from: location }} replace />
+  }
+
+  return <>{children}</>
+}
+
+/**
+ * Public route wrapper for /auth: redirects already authenticated users directly to /dashboard
+ */
+function PublicAuthRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isLoading } = useAuth()
+
+  if (isLoading) {
+    return (
+      <div className="min-h-[50vh] flex flex-col items-center justify-center gap-3">
+        <div className="w-8 h-8 border-4 border-voxel-stone-dark border-t-voxel-grass animate-spin" />
+        <span className="font-pixel text-xs text-voxel-sand">VERIFYING SESSION...</span>
+      </div>
+    )
+  }
+
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" replace />
+  }
+
+  return <>{children}</>
+}
+
+function AppContent() {
+  const { isAuthenticated, user } = useAuth()
   const [voiceStatus, setVoiceStatus] = useState<VoiceEnrollmentState>('NOT_ENROLLED')
-  const [userEmail, setUserEmail] = useState<string>('aman@vaani.ai')
-  const [libraryAudios, setLibraryAudios] = useState<AudioAsset[]>(INITIAL_AUDIOS)
+  const [userEmail, setUserEmail] = useState<string>('')
+  const [libraryAudios, setLibraryAudios] = useState<AudioAsset[]>([])
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setLibraryAudios([])
+      return
+    }
+    audioApi
+      .list()
+      .then((serverAudios) => {
+        setLibraryAudios(serverAudios)
+      })
+      .catch((err) => {
+        console.warn('[App] Could not fetch initial audio library:', err)
+      })
+  }, [isAuthenticated])
 
   const isVoiceActive = voiceStatus === 'READY'
 
   const refreshVoiceProfile = useCallback(async () => {
+    if (!isAuthenticated) {
+      setVoiceStatus('NOT_ENROLLED')
+      return
+    }
     try {
       const profile = await voiceApi.getProfile()
       if (profile && profile.status === 'READY' && profile.isReadyForSynthesis && profile.hasSpeakerEmbedding) {
@@ -74,9 +99,13 @@ export function App() {
     } catch {
       setVoiceStatus('NOT_ENROLLED')
     }
-  }, [])
+  }, [isAuthenticated])
 
   useEffect(() => {
+    if (!isAuthenticated) {
+      setVoiceStatus('NOT_ENROLLED')
+      return
+    }
     let isMounted = true
     voiceApi
       .getProfile()
@@ -97,7 +126,13 @@ export function App() {
     return () => {
       isMounted = false
     }
-  }, [])
+  }, [isAuthenticated])
+
+  useEffect(() => {
+    if (user?.email) {
+      setUserEmail(user.email)
+    }
+  }, [user])
 
   const handleAudioGenerated = (newAudio: AudioAsset) => {
     setLibraryAudios((prev) => [newAudio, ...prev])
@@ -123,60 +158,103 @@ export function App() {
   }
 
   return (
-    <AudioProvider>
-      <BrowserRouter>
-        <Routes>
-          {/* Public Landing Page */}
-          <Route element={<AppLayout hasVoiceProfile={isVoiceActive} voiceStatus={voiceStatus} userEmail={userEmail} />}>
-            <Route path="/" element={<Landing />} />
-            <Route path="/auth" element={<Auth onLoginSuccess={(email) => setUserEmail(email)} />} />
-            <Route
-              path="/dashboard"
-              element={
+    <BrowserRouter>
+      <Routes>
+        <Route
+          element={
+            <AppLayout
+              hasVoiceProfile={isVoiceActive}
+              voiceStatus={voiceStatus}
+              userEmail={userEmail || user?.email}
+            />
+          }
+        >
+          {/* Public Routes */}
+          <Route path="/" element={<Landing />} />
+          <Route
+            path="/auth"
+            element={
+              <PublicAuthRoute>
+                <Auth onLoginSuccess={(email) => setUserEmail(email)} />
+              </PublicAuthRoute>
+            }
+          />
+          <Route path="/demo" element={<SpeechStudio isDemoMode={true} />} />
+
+          {/* Authenticated Protected Routes */}
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
                 <Dashboard
                   hasVoiceProfile={isVoiceActive}
                   voiceStatus={voiceStatus}
                   recentAudios={libraryAudios}
                 />
-              }
-            />
-            <Route
-              path="/voice-setup"
-              element={
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/voice-setup"
+            element={
+              <ProtectedRoute>
                 <VoiceSetup
                   currentStatus={voiceStatus}
                   onStatusChange={handleVoiceStatusChange}
                 />
-              }
-            />
-            <Route
-              path="/studio"
-              element={
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/studio"
+            element={
+              <ProtectedRoute>
                 <SpeechStudio
                   hasVoiceProfile={isVoiceActive}
                   voiceStatus={voiceStatus}
                   onAudioGenerated={handleAudioGenerated}
                 />
-              }
-            />
-            <Route
-              path="/library"
-              element={<AudioLibrary initialAudios={libraryAudios} />}
-            />
-            <Route
-              path="/settings"
-              element={
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/library"
+            element={
+              <ProtectedRoute>
+                <AudioLibrary initialAudios={libraryAudios} />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
                 <Settings
                   hasVoiceProfile={isVoiceActive}
                   voiceStatus={voiceStatus}
                   onRevokeProfile={handleRevokeProfile}
                 />
-              }
-            />
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Catch-all redirect */}
+          <Route
+            path="*"
+            element={<Navigate to={isAuthenticated ? '/dashboard' : '/'} replace />}
+          />
+        </Route>
+      </Routes>
+    </BrowserRouter>
+  )
+}
+
+export function App() {
+  return (
+    <AudioProvider>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
     </AudioProvider>
   )
 }

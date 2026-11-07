@@ -42,7 +42,7 @@ export const Footer: React.FC = () => {
         {/* Challenge Attribution */}
         <div className="text-center md:text-right text-[10px]">
           <span className="text-voxel-grass font-pixel">GREAT INDIAN AI INTERNSHIP CHALLENGE</span>
-          <p className="text-voxel-stone-light mt-0.5">Aman Sharma • 100% DPDP Biometric Safe</p>
+          <p className="text-voxel-stone-light mt-0.5">VAANI Voice Studio • 100% DPDP Biometric Safe</p>
         </div>
       </div>
     </footer>

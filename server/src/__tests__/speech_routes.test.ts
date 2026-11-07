@@ -156,5 +156,58 @@ describe('Speech Studio Backend API Routes (POST /api/speech/generate)', () => {
     expect(res.status).toBe(404)
     expect(res.body.error).toBe('JOB_NOT_FOUND')
   })
+
+  describe('Public Demo Speech Endpoint (POST /api/speech/demo-generate)', () => {
+    it('synthesizes speech without any Authorization header and leaves database untouched (200)', async () => {
+      const initialAssetCount = mockDb.audioAssets.size
+
+      const res = await request(app)
+        .post('/api/speech/demo-generate')
+        .send({
+          text: 'नमस्ते, यह वाणी डेमो मोड का भाषण संश्लेषण परीक्षण है।',
+          title: 'Public Demo Test',
+          targetLanguage: 'hi-IN',
+          standardVoiceId: 'Nalini',
+          speed: 1.0,
+        })
+
+      expect(res.status).toBe(200)
+      expect(res.body.success).toBe(true)
+      expect(res.body.isDemo).toBe(true)
+      expect(res.body.audioBase64).toBeDefined()
+      expect(res.body.asset).toBeDefined()
+      expect(res.body.asset.voiceMode).toBe('standard')
+      expect(res.body.asset.audioBase64).toBeDefined()
+      expect(res.body.asset.durationSeconds).toBeGreaterThan(0)
+
+      // Strict isolation: ZERO database mutations
+      expect(mockDb.audioAssets.size).toBe(initialAssetCount)
+    })
+
+    it('rejects demo script exceeding 300 character limit (400 Bad Request)', async () => {
+      const res = await request(app)
+        .post('/api/speech/demo-generate')
+        .send({
+          text: 'A'.repeat(305),
+          targetLanguage: 'hi-IN',
+        })
+
+      expect(res.status).toBe(400)
+      expect(res.body.error).toBe('VALIDATION_ERROR')
+      expect(res.body.details?.[0]?.message).toContain('300')
+    })
+
+    it('rejects empty script with 400 validation error', async () => {
+      const res = await request(app)
+        .post('/api/speech/demo-generate')
+        .send({
+          text: '',
+          targetLanguage: 'en-IN',
+        })
+
+      expect(res.status).toBe(400)
+      expect(res.body.error).toBe('VALIDATION_ERROR')
+    })
+  })
 })
 

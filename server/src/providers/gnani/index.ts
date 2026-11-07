@@ -78,21 +78,25 @@ export class GnaniProvider {
     language?: SupportedLocale
     voice?: string
     speed?: number
+    timeoutMs?: number
   }): Promise<SynthesisResult> {
-    return this.timbreClient.synthesize({
-      text: params.text,
-      language: params.language || 'hi-IN',
-      voice: params.voice || 'Nalini',
-      model: 'timbre-v2.5',
-      speed: params.speed || 1.0,
-      audio_config: {
-        encoding: 'linear_pcm',
-        container: 'wav',
-        num_channels: 1,
-        sample_rate: 48000,
-        sample_width: 2,
+    return this.timbreClient.synthesize(
+      {
+        text: params.text,
+        language: params.language || 'hi-IN',
+        voice: params.voice || 'Nalini',
+        model: 'timbre-v2.5',
+        speed: params.speed || 1.0,
+        audio_config: {
+          encoding: 'linear_pcm',
+          container: 'wav',
+          num_channels: 1,
+          sample_rate: 48000,
+          sample_width: 2,
+        },
       },
-    })
+      params.timeoutMs
+    )
   }
 
   /**
@@ -103,21 +107,25 @@ export class GnaniProvider {
     language?: SupportedLocale
     speakerEmbedding: SpeakerEmbedding
     speed?: number
+    timeoutMs?: number
   }): Promise<SynthesisResult> {
-    return this.timbreClient.synthesize({
-      text: params.text,
-      language: params.language || 'hi-IN',
-      model: 'vachana-vc-v1',
-      speed: params.speed || 1.0,
-      speaker_embedding: params.speakerEmbedding,
-      audio_config: {
-        encoding: 'linear_pcm',
-        container: 'wav',
-        num_channels: 1,
-        sample_rate: 48000,
-        sample_width: 2,
+    return this.timbreClient.synthesize(
+      {
+        text: params.text,
+        language: params.language || 'hi-IN',
+        model: 'vachana-vc-v1',
+        speed: params.speed || 1.0,
+        speaker_embedding: params.speakerEmbedding,
+        audio_config: {
+          encoding: 'linear_pcm',
+          container: 'wav',
+          num_channels: 1,
+          sample_rate: 48000,
+          sample_width: 2,
+        },
       },
-    })
+      params.timeoutMs
+    )
   }
 
   /**

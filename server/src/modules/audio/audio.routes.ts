@@ -12,17 +12,80 @@ const idParamSchema = z.object({
   id: z.string().min(1, 'Audio asset ID is required'),
 })
 
+function getLanguageLabel(code: string): string {
+  switch (code) {
+    case 'hi-IN':
+      return 'Hindi (हिन्दी)'
+    case 'en-IN':
+      return 'Indian English'
+    case 'auto':
+      return 'Hinglish (Code-mixed)'
+    case 'ta-IN':
+      return 'Tamil (தமிழ்)'
+    case 'te-IN':
+      return 'Telugu (తెలుగు)'
+    case 'kn-IN':
+      return 'Kannada (ಕನ್ನಡ)'
+    case 'mr-IN':
+      return 'Marathi (मराठी)'
+    case 'bn-IN':
+      return 'Bengali (বাংলা)'
+    case 'gu-IN':
+      return 'Gujarati (ગુજરાતી)'
+    case 'ml-IN':
+      return 'Malayalam (മലയാളം)'
+    case 'pa-IN':
+      return 'Punjabi (ਪੰਜਾਬੀ)'
+    case 'or-IN':
+      return 'Odia (ଓଡ଼ିଆ)'
+    default:
+      return code || 'Hindi (हिन्दी)'
+  }
+}
+
 /**
  * GET /api/audio
- * Lists all audio assets owned by the authenticated user.
+ * Lists all audio assets owned by the authenticated user with enriched speech job metadata.
  */
 audioRouter.get('/', requireAuth, async (req: Request, res: Response) => {
   const userId = req.user!.id
   const userAudios = await dbRepo.getAudioAssets(userId)
 
+  const enrichedAssets = userAudios.map((a: any) => {
+    const langCode = a.target_language || 'hi-IN'
+    const langName = getLanguageLabel(langCode)
+    const vMode = a.voice_mode || 'standard'
+    const vLabel = vMode === 'personal' ? 'Enrolled Voice' : 'Timbre Standard'
+
+    return {
+      id: a.id,
+      user_id: a.user_id,
+      userId: a.user_id,
+      title: a.title,
+      textPreview: a.input_text || a.title,
+      originalText: a.input_text || a.title,
+      languageCode: langCode,
+      languageName: langName,
+      voiceMode: vMode,
+      voiceLabel: vLabel,
+      durationSeconds: Math.max(1, Math.round((a.duration_ms || 12000) / 1000)),
+      duration_ms: a.duration_ms,
+      durationMs: a.duration_ms,
+      file_size: a.file_size,
+      fileSizeBytes: a.file_size,
+      object_key: a.object_key,
+      objectKey: a.object_key,
+      storagePath: a.object_key,
+      mime_type: a.mime_type || 'audio/wav',
+      mimeType: a.mime_type || 'audio/wav',
+      created_at: a.created_at,
+      createdAt: a.created_at,
+    }
+  })
+
   res.json({
-    assets: userAudios,
-    totalCount: userAudios.length,
+    assets: enrichedAssets,
+    totalCount: enrichedAssets.length,
   })
 })
 

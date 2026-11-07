@@ -1,6 +1,7 @@
-import React, { useState, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Lock, Mail, ArrowRight, Key, Sparkles } from 'lucide-react'
+/* oxlint-disable react/set-state-in-effect */
+import React, { useState, useRef, useEffect } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Lock, Mail, ArrowRight, Sparkles } from 'lucide-react'
 import { BlockButton } from '../components/ui/BlockButton'
 import { VoxelCard, CardHeader, CardContent } from '../components/ui/VoxelCard'
 import { BlockInput } from '../components/ui/BlockInput'
@@ -29,7 +30,9 @@ function maskEmail(emailStr: string): string {
 
 export const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
   const navigate = useNavigate()
-  const [isSignUp, setIsSignUp] = useState(false)
+  const [searchParams] = useSearchParams()
+  // Default strictly to false (LOGIN mode); only true if URL explicitly specifies mode=signup
+  const [isSignUp, setIsSignUp] = useState(() => searchParams.get('mode') === 'signup')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [displayName, setDisplayName] = useState('')
@@ -37,6 +40,35 @@ export const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
   const [successNotice, setSuccessNotice] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [showStudioFallback, setShowStudioFallback] = useState(false)
+
+  const handleSwitchToLogin = () => {
+    setIsSignUp(false)
+    navigate('/auth?mode=login', { replace: true })
+    setError(null)
+    setSuccessNotice(null)
+    setShowStudioFallback(false)
+  }
+
+  const handleSwitchToSignUp = () => {
+    setIsSignUp(true)
+    navigate('/auth?mode=signup', { replace: true })
+    setError(null)
+    setSuccessNotice(null)
+    setShowStudioFallback(false)
+  }
+
+  // Synchronize tab with URL query parameter (defaulting to /auth?mode=login)
+  useEffect(() => {
+    const mode = searchParams.get('mode')
+    if (mode === 'signup') {
+      setIsSignUp(true)
+    } else {
+      setIsSignUp(false)
+      if (mode !== 'login') {
+        navigate('/auth?mode=login', { replace: true })
+      }
+    }
+  }, [searchParams, navigate])
 
   // Synchronous re-entrance lock to prevent duplicate concurrent submissions
   const isSubmittingRef = useRef(false)
@@ -336,43 +368,6 @@ export const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
     }
   }
 
-  const handleDemoLogin = async () => {
-    const demoEmail = 'hackathon.evaluator@gnani.ai'
-    const demoPassword = 'DemoVault2026!'
-    setEmail(demoEmail)
-    setPassword(demoPassword)
-    setError(null)
-    setSuccessNotice(null)
-    setShowStudioFallback(false)
-    setIsLoading(true)
-
-    try {
-      const { data, error: demoError } = await supabase.auth.signInWithPassword({
-        email: demoEmail,
-        password: demoPassword,
-      })
-      if (!demoError && data?.session) {
-        setAuthToken(data.session.access_token)
-        if (onLoginSuccess) {
-          onLoginSuccess(demoEmail)
-        }
-        navigate('/dashboard')
-        return
-      }
-    } catch {
-      // Fallback
-    }
-
-    // Fallback evaluator access
-    setTimeout(() => {
-      setIsLoading(false)
-      if (onLoginSuccess) {
-        onLoginSuccess(demoEmail)
-      }
-      navigate('/dashboard')
-    }, 450)
-  }
-
   return (
     <div className="max-w-5xl mx-auto py-8 sm:py-12 select-none">
       {/* Split-Screen Layout */}
@@ -386,8 +381,10 @@ export const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
           <div className="absolute bottom-0 right-0 w-2 h-2 bg-voxel-gold" />
 
           <div className="flex items-center justify-between">
-            <BlockBadge variant="grass">VOXEL CHUNK #2026</BlockBadge>
-            <span className="font-mono text-[10px] text-voxel-sand">SECURE AUTH PORTAL</span>
+            <BlockBadge variant={isSignUp ? 'gold' : 'grass'}>VOXEL CHUNK #2026</BlockBadge>
+            <span className="font-mono text-[10px] text-voxel-sand">
+              {isSignUp ? 'CITIZEN REGISTRATION' : 'CITIZEN LOGIN PORTAL'}
+            </span>
           </div>
 
           <div className="text-center py-6 space-y-4">
@@ -423,10 +420,30 @@ export const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
         {/* Right Side: Block Authentication Form */}
         <div className="lg:col-span-6 space-y-4">
           <VoxelCard biome="stone" glow>
-            <CardHeader>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-pixel text-voxel-gold uppercase">IDENTITY GATE</span>
-                <BlockBadge variant="lapis">SUPABASE JWT</BlockBadge>
+            <CardHeader className="space-y-3">
+              {/* Badge & Section Label */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <BlockBadge variant={isSignUp ? 'gold' : 'grass'}>
+                    {isSignUp ? 'SIGNUP' : 'LOGIN'}
+                  </BlockBadge>
+                  <span className="text-[10px] font-pixel text-voxel-gold uppercase tracking-wider">
+                    {isSignUp ? 'NEW CITIZEN REGISTRATION' : 'CITIZEN LOGIN GATE'}
+                  </span>
+                </div>
+                <BlockBadge variant="lapis">SUPABASE AUTH</BlockBadge>
+              </div>
+
+              {/* Main Heading & Form Description */}
+              <div>
+                <h1 className="text-xl sm:text-2xl font-pixel uppercase tracking-wide text-voxel-cloud">
+                  {isSignUp ? 'CREATE YOUR ACCOUNT' : 'SIGN IN TO VAANI'}
+                </h1>
+                <p className="text-xs font-sans text-voxel-stone-light mt-1">
+                  {isSignUp
+                    ? 'Register your callsign to build your voice profile and store generated audio.'
+                    : 'Welcome back! Enter your email and password to access your speech studio.'}
+                </p>
               </div>
 
               {/* Tab Selector */}
@@ -434,15 +451,10 @@ export const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
                 <button
                   type="button"
                   disabled={isLoading}
-                  onClick={() => {
-                    setIsSignUp(false)
-                    setError(null)
-                    setSuccessNotice(null)
-                    setShowStudioFallback(false)
-                  }}
+                  onClick={handleSwitchToLogin}
                   className={`flex-1 py-2 text-[10px] font-pixel uppercase transition-all block-pressable disabled:opacity-50 ${
                     !isSignUp
-                      ? 'bg-voxel-grass text-voxel-bedrock shadow-voxel-sm border border-[#88D169]'
+                      ? 'bg-voxel-grass text-voxel-bedrock shadow-voxel-sm border border-[#88D169] font-bold'
                       : 'text-voxel-stone-light hover:text-white'
                   }`}
                 >
@@ -451,15 +463,10 @@ export const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
                 <button
                   type="button"
                   disabled={isLoading}
-                  onClick={() => {
-                    setIsSignUp(true)
-                    setError(null)
-                    setSuccessNotice(null)
-                    setShowStudioFallback(false)
-                  }}
+                  onClick={handleSwitchToSignUp}
                   className={`flex-1 py-2 text-[10px] font-pixel uppercase transition-all block-pressable disabled:opacity-50 ${
                     isSignUp
-                      ? 'bg-voxel-grass text-voxel-bedrock shadow-voxel-sm border border-[#88D169]'
+                      ? 'bg-voxel-grass text-voxel-bedrock shadow-voxel-sm border border-[#88D169] font-bold'
                       : 'text-voxel-stone-light hover:text-white'
                   }`}
                 >
@@ -515,11 +522,12 @@ export const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
                   {isSignUp && (
                     <BlockInput
                       label="YOUR CALLSIGN / NAME"
-                      placeholder="Aman Sharma"
+                      placeholder="Enter your name"
                       value={displayName}
                       onChange={(e) => setDisplayName(e.target.value)}
                       required={isSignUp}
                       disabled={isLoading}
+                      autoComplete="name"
                     />
                   )}
 
@@ -532,6 +540,7 @@ export const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
                     leftIcon={<Mail className="w-4 h-4" />}
                     required
                     disabled={isLoading}
+                    autoComplete="email"
                   />
 
                   <BlockInput
@@ -543,6 +552,7 @@ export const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
                     leftIcon={<Lock className="w-4 h-4" />}
                     required
                     disabled={isLoading}
+                    autoComplete={isSignUp ? 'new-password' : 'current-password'}
                   />
 
                   <BlockButton
@@ -554,27 +564,54 @@ export const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
                     disabled={isLoading}
                     rightIcon={<ArrowRight className="w-4 h-4" />}
                   >
-                    {isSignUp ? 'CREATE VOXEL PROFILE' : 'ENTER VOICE STUDIO'}
+                    {isSignUp ? 'CREATE VOXEL PROFILE' : 'SIGN IN'}
                   </BlockButton>
+
+                  {/* Secondary Link: Toggle between Login and Signup */}
+                  <div className="text-center pt-2">
+                    {isSignUp ? (
+                      <button
+                        type="button"
+                        onClick={handleSwitchToLogin}
+                        className="text-xs font-mono text-voxel-stone-light hover:text-voxel-gold transition-colors inline-flex items-center gap-1.5 cursor-pointer bg-transparent border-0"
+                      >
+                        <span>Already have an account?</span>
+                        <span className="text-voxel-gold font-pixel underline underline-offset-4">Sign In</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleSwitchToSignUp}
+                        className="text-xs font-mono text-voxel-stone-light hover:text-voxel-grass transition-colors inline-flex items-center gap-1.5 cursor-pointer bg-transparent border-0"
+                      >
+                        <span>Don't have an account?</span>
+                        <span className="text-voxel-grass font-pixel underline underline-offset-4">Create Account</span>
+                      </button>
+                    )}
+                  </div>
                 </fieldset>
               </form>
 
-              {/* Fast Evaluator 1-Click Login */}
-              <div className="pt-4 border-t-2 border-voxel-stone-dark/80 mt-4 space-y-3">
+              {/* Secondary Action: Continue with Demo (No registration required) */}
+              <div className="pt-4 border-t-2 border-voxel-stone-dark/80 mt-4 space-y-2.5">
                 <div className="flex items-center justify-between text-[10px] font-pixel text-voxel-sand">
-                  <span>HACKATHON EVALUATOR MODE</span>
-                  <Key className="w-3.5 h-3.5 text-voxel-gold" />
+                  <span>INSTANT GUEST ACCESS</span>
+                  <BlockBadge variant="gold" size="sm">NO SIGNUP REQUIRED</BlockBadge>
                 </div>
                 <BlockButton
                   type="button"
-                  variant="gold"
-                  size="sm"
-                  onClick={handleDemoLogin}
+                  variant="secondary"
+                  size="md"
+                  onClick={() => navigate('/demo')}
                   disabled={isLoading}
-                  className="w-full text-[10px]"
+                  className="w-full text-xs font-pixel"
+                  rightIcon={<ArrowRight className="w-4 h-4 text-voxel-gold" />}
                 >
-                  ⚡ QUICK LOGIN AS EVALUATOR
+                  CONTINUE WITH DEMO
                 </BlockButton>
+                <p className="text-[10px] font-mono text-voxel-stone-light text-center">
+                  Try Speech Studio directly with standard Timbre voices without creating an account.
+                </p>
               </div>
             </CardContent>
           </VoxelCard>

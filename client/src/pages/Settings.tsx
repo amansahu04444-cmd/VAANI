@@ -6,6 +6,7 @@ import { BlockBadge } from '../components/ui/BlockBadge'
 import { BlockNoticeBanner } from '../components/ui/BlockNoticeBanner'
 import { BlockModal } from '../components/ui/BlockModal'
 import { CubeIllustration } from '../components/ui/CubeIllustration'
+import { useAuth } from '../context/AuthContext'
 import type { VoiceEnrollmentState } from '../types'
 
 export interface SettingsProps {
@@ -19,6 +20,7 @@ export const Settings: React.FC<SettingsProps> = ({
   voiceStatus,
   onRevokeProfile,
 }) => {
+  const { user, isProfileLoading } = useAuth()
   const isReady = voiceStatus === 'READY' || (hasVoiceProfile && !voiceStatus)
   const isMissingTensor = voiceStatus === 'EMBEDDING_MISSING'
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
@@ -83,14 +85,22 @@ export const Settings: React.FC<SettingsProps> = ({
               <span className="text-[9px] uppercase font-pixel text-voxel-sand block">
                 CANDIDATE NAME
               </span>
-              <span className="text-sm font-semibold text-voxel-cloud">Aman Sahu</span>
+              <span className="text-sm font-semibold text-voxel-cloud">
+                {isProfileLoading && !user?.rawUsername ? (
+                  <span className="animate-pulse text-voxel-stone-light">...</span>
+                ) : (
+                  user?.rawUsername || user?.displayName || 'VAANI USER'
+                )}
+              </span>
             </div>
 
             <div className="bg-[#121417] p-3.5 border-2 border-voxel-stone-dark shadow-voxel-inset space-y-1">
               <span className="text-[9px] uppercase font-pixel text-voxel-sand block">
                 EMAIL IDENTIFIER
               </span>
-              <span className="text-sm font-semibold text-voxel-cloud">amansahu04444@gmail.com</span>
+              <span className="text-sm font-semibold text-voxel-cloud">
+                {user?.email || 'authenticated@vaani.ai'}
+              </span>
             </div>
 
             <div className="bg-[#121417] p-3.5 border-2 border-voxel-stone-dark shadow-voxel-inset space-y-1">

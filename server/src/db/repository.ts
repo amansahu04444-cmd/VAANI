@@ -53,6 +53,13 @@ export interface AudioAssetRecord {
   title: string
   created_at: string
   deleted_at: string | null
+  input_text?: string
+  original_text?: string
+  translated_text?: string
+  target_language?: string
+  source_language?: string
+  voice_mode?: 'personal' | 'standard'
+  provider_model?: string
 }
 
 export interface ConsentEventRecord {
@@ -350,23 +357,139 @@ export class SupabaseRepository {
   }
 
   /**
-   * Retrieves all non-deleted audio assets for user.
+   * Saves a speech job record (tracking original prompt, language, model, voice mode).
+   */
+  async saveSpeechJob(record: SpeechJobRecord): Promise<SpeechJobRecord> {
+    mockDb.speechJobs.set(record.id, record)
+    if (isUuid(record.user_id) && isUuid(record.id)) {
+      try {
+        const payload: Record<string, any> = {
+          id: record.id,
+          user_id: record.user_id,
+          voice_profile_id: isUuid(record.voice_profile_id || '') ? record.voice_profile_id : null,
+          input_text: record.input_text,
+          source_language: record.source_language || 'auto',
+          target_language: record.target_language || 'hi-IN',
+          provider_model: record.provider_model || 'timbre-v2.5',
+          voice_mode: record.voice_mode || 'standard',
+          status: record.status || 'completed',
+          provider_request_id: record.provider_request_id || null,
+          duration_ms: record.duration_ms || null,
+          error_code: record.error_code || null,
+          created_at: record.created_at || new Date().toISOString(),
+          completed_at: record.completed_at || new Date().toISOString(),
+        }
+        const { error } = await supabaseAdmin.from('speech_jobs').insert(payload)
+        if (error) {
+          console.error('[Repository] Error inserting speech job to Supabase:', error.message)
+        }
+      } catch (err: any) {
+        console.error('[Repository] Exception inserting speech job:', err?.message || err)
+      }
+    }
+    return record
+  }
+
+  /**
+   * Retrieves specific speech job by ID.
+   */
+  async getSpeechJob(jobId: string, userId: string): Promise<SpeechJobRecord | null> {
+    if (isUuid(userId) && isUuid(jobId)) {
+      try {
+        const { data, error } = await supabaseAdmin
+          .from('speech_jobs')
+          .select('*')
+          .eq('id', jobId)
+          .eq('user_id', userId)
+          .maybeSingle()
+        if (!error && data) return data as SpeechJobRecord
+      } catch {}
+    }
+    return mockDb.speechJobs.get(jobId) || null
+  }
+
+  /**
+   * Retrieves all non-deleted audio assets for user, enriched with speech job metadata.
    */
   async getAudioAssets(userId: string): Promise<AudioAssetRecord[]> {
     if (isUuid(userId)) {
       try {
         const { data, error } = await supabaseAdmin
           .from('audio_assets')
+          .select(`
+            id,
+            user_id,
+            speech_job_id,
+            object_key,
+            mime_type,
+            file_size,
+            duration_ms,
+            title,
+            created_at,
+            deleted_at,
+            speech_jobs (
+              id,
+              input_text,
+              source_language,
+              target_language,
+              provider_model,
+              voice_mode
+            )
+          `)
+          .eq('user_id', userId)
+          .is('deleted_at', null)
+          .order('created_at', { ascending: false })
+
+        if (!error && data) {
+          return data.map((item: any) => {
+            const job = Array.isArray(item.speech_jobs) ? item.speech_jobs[0] : item.speech_jobs
+            return {
+              id: item.id,
+              user_id: item.user_id,
+              speech_job_id: item.speech_job_id,
+              object_key: item.object_key,
+              mime_type: item.mime_type,
+              file_size: item.file_size,
+              duration_ms: item.duration_ms,
+              title: item.title,
+              created_at: item.created_at,
+              deleted_at: item.deleted_at,
+              input_text: job?.input_text || item.title,
+              target_language: job?.target_language || 'hi-IN',
+              source_language: job?.source_language || 'auto',
+              voice_mode: job?.voice_mode || 'standard',
+              provider_model: job?.provider_model || 'timbre-v2.5',
+            }
+          })
+        }
+
+        const fallbackRes = await supabaseAdmin
+          .from('audio_assets')
           .select('*')
           .eq('user_id', userId)
           .is('deleted_at', null)
           .order('created_at', { ascending: false })
-        if (!error && data) return data as AudioAssetRecord[]
-      } catch {}
+        if (!fallbackRes.error && fallbackRes.data) {
+          return fallbackRes.data as AudioAssetRecord[]
+        }
+      } catch (err) {
+        console.warn('[Repository] Error querying audio_assets:', err)
+      }
     }
-    return Array.from(mockDb.audioAssets.values()).filter(
-      (a) => a.user_id === userId && a.deleted_at === null
-    )
+
+    return Array.from(mockDb.audioAssets.values())
+      .filter((a) => a.user_id === userId && a.deleted_at === null)
+      .map((a) => {
+        const job = a.speech_job_id ? mockDb.speechJobs.get(a.speech_job_id) : null
+        return {
+          ...a,
+          input_text: job?.input_text || a.input_text || a.title,
+          target_language: job?.target_language || a.target_language || 'hi-IN',
+          source_language: job?.source_language || a.source_language || 'auto',
+          voice_mode: job?.voice_mode || a.voice_mode || 'standard',
+          provider_model: job?.provider_model || a.provider_model || 'timbre-v2.5',
+        }
+      })
   }
 
   /**
@@ -387,16 +510,17 @@ export class SupabaseRepository {
   }
 
   /**
-   * Saves new audio asset record.
+   * Saves new audio asset record with foreign key resilience and explicit error logging.
    */
   async saveAudioAsset(record: AudioAssetRecord): Promise<AudioAssetRecord> {
     mockDb.audioAssets.set(record.id, record)
     if (isUuid(record.user_id) && isUuid(record.id)) {
+      const speechJobId = isUuid(record.speech_job_id || '') ? record.speech_job_id : null
       try {
-        await supabaseAdmin.from('audio_assets').insert({
+        const { error } = await supabaseAdmin.from('audio_assets').insert({
           id: record.id,
           user_id: record.user_id,
-          speech_job_id: isUuid(record.speech_job_id || '') ? record.speech_job_id : null,
+          speech_job_id: speechJobId,
           object_key: record.object_key,
           mime_type: record.mime_type,
           file_size: record.file_size,
@@ -405,7 +529,33 @@ export class SupabaseRepository {
           created_at: record.created_at,
           deleted_at: record.deleted_at,
         })
-      } catch {}
+        if (error) {
+          console.error('[Repository] Error inserting audio asset to Supabase:', error.message)
+          if (speechJobId && (error.message.includes('foreign key') || error.message.includes('speech_job_id'))) {
+            console.warn('[Repository] Retrying audio_assets insert without foreign key speech_job_id...')
+            const retryRes = await supabaseAdmin.from('audio_assets').insert({
+              id: record.id,
+              user_id: record.user_id,
+              speech_job_id: null,
+              object_key: record.object_key,
+              mime_type: record.mime_type,
+              file_size: record.file_size,
+              duration_ms: record.duration_ms,
+              title: record.title,
+              created_at: record.created_at,
+              deleted_at: record.deleted_at,
+            })
+            if (retryRes.error) {
+              throw new Error(`DB_AUDIO_ASSET_INSERT_FAILED: ${retryRes.error.message}`)
+            }
+          } else {
+            throw new Error(`DB_AUDIO_ASSET_INSERT_FAILED: ${error.message}`)
+          }
+        }
+      } catch (err: any) {
+        console.error('[Repository] Exception in saveAudioAsset:', err?.message || err)
+        throw err
+      }
     }
     return record
   }

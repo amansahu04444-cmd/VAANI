@@ -59,6 +59,9 @@ export interface AudioAsset {
   userId: string
   title: string
   textPreview: string
+  originalText?: string
+  translatedText?: string
+  sourceLanguage?: string
   languageCode: string
   languageName: string
   voiceMode: VoiceMode

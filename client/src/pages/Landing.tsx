@@ -9,8 +9,10 @@ import { ImmersiveHeroBackground } from '../components/effects/ImmersiveHeroBack
 import { CubeIllustration } from '../components/ui/CubeIllustration'
 import { PixelDivider } from '../components/ui/PixelDivider'
 import { SUPPORTED_LANGUAGES, DEMO_SCRIPTS } from '../lib/constants'
+import { useAuth } from '../context/AuthContext'
 
 export const Landing: React.FC = () => {
+  const { isAuthenticated } = useAuth()
   const [activeDemoScript, setActiveDemoScript] = useState(DEMO_SCRIPTS[0])
 
   return (
@@ -60,14 +62,18 @@ export const Landing: React.FC = () => {
 
           {/* 4. 3D Block Action Buttons (Top Interactive Layer: z-20) */}
           <div className="relative z-20 flex flex-wrap items-center justify-center gap-4 pt-2 animate-hero-cta">
-            <Link to="/studio">
+            <Link to={isAuthenticated ? '/studio' : '/demo'}>
               <BlockButton size="lg" variant="primary" rightIcon={<ArrowRight className="w-4 h-4" />}>
-                OPEN SPEECH STUDIO
+                {isAuthenticated ? 'OPEN SPEECH STUDIO' : 'TRY DEMO STUDIO'}
               </BlockButton>
             </Link>
-            <Link to="/voice-setup">
-              <BlockButton variant="gold" size="lg" leftIcon={<Mic2 className="w-4 h-4" />}>
-                ENROLL VOICE PROFILE
+            <Link to={isAuthenticated ? '/voice-setup' : '/auth?mode=signup'}>
+              <BlockButton
+                variant="gold"
+                size="lg"
+                leftIcon={isAuthenticated ? <Mic2 className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
+              >
+                {isAuthenticated ? 'ENROLL VOICE PROFILE' : 'CREATE ACCOUNT'}
               </BlockButton>
             </Link>
           </div>
@@ -136,7 +142,7 @@ export const Landing: React.FC = () => {
           </div>
           <VoxelAudioPlayer
             title={activeDemoScript.title}
-            voiceLabel="VAANI ENROLLED SPEAKER (AMAN)"
+            voiceLabel="VAANI ENROLLED SPEAKER"
             voiceMode="personal"
             languageName={
               activeDemoScript.lang === 'hi-IN'
@@ -240,9 +246,9 @@ export const Landing: React.FC = () => {
             VAANI converts audio into encrypted numerical embeddings. Raw microphone audio is immediately purged. We never make profiles public and provide a one-click irreversible purge.
           </p>
         </div>
-        <Link to="/voice-setup" className="shrink-0">
+        <Link to={isAuthenticated ? '/voice-setup' : '/auth?mode=signup'} className="shrink-0">
           <BlockButton variant="primary" size="md">
-            START ENROLLMENT
+            {isAuthenticated ? 'START ENROLLMENT' : 'GET STARTED'}
           </BlockButton>
         </Link>
       </section>

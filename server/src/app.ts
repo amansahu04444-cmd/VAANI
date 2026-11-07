@@ -7,6 +7,7 @@ import { authRouter } from './modules/auth/auth.routes.js'
 import { voiceRouter } from './modules/voice/voice.routes.js'
 import { audioRouter } from './modules/audio/audio.routes.js'
 import { speechRouter } from './modules/speech/speech.routes.js'
+import { translationRouter } from './modules/translation/translation.routes.js'
 
 export const app = express()
 
@@ -41,6 +42,7 @@ app.use('/api/auth', authRouter)
 app.use('/api/voice', voiceRouter)
 app.use('/api/audio', audioRouter)
 app.use('/api/speech', speechRouter)
+app.use('/api/translation', translationRouter)
 
 // 404 handler
 app.use((_req: Request, res: Response) => {

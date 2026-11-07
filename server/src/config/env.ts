@@ -1,6 +1,11 @@
+import path from 'path'
+import { fileURLToPath } from 'url'
 import dotenv from 'dotenv'
 import { z } from 'zod'
 
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+dotenv.config({ path: path.resolve(__dirname, '../../.env') })
 dotenv.config()
 
 const envSchema = z.object({
@@ -16,6 +21,8 @@ const envSchema = z.object({
   GNANI_API_BASE_URL: z.string().url().default('https://api.vachana.ai'),
   GNANI_TTS_MODEL: z.string().default('timbre-v2.5'),
   GNANI_CUSTOM_VOICE_ENABLED: z.coerce.boolean().default(false),
+  GNANI_TTS_TIMEOUT_MS: z.coerce.number().default(60000), // Default: 60 seconds
+  GNANI_TTS_LONG_TIMEOUT_MS: z.coerce.number().default(120000), // Long audio / voice cloning: up to 120 seconds
 })
 
 export const config = envSchema.parse(process.env)

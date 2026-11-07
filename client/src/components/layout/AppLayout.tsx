@@ -14,7 +14,7 @@ export interface AppLayoutProps {
 export const AppLayout: React.FC<AppLayoutProps> = ({
   hasVoiceProfile = false,
   voiceStatus,
-  userEmail = 'aman@vaani.ai',
+  userEmail,
 }) => {
   const location = useLocation()
   const isLanding = location.pathname === '/'

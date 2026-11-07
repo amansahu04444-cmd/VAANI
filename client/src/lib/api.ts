@@ -2,14 +2,8 @@ import type { AudioAsset, UserVoiceProfile, VoiceMode } from '../types'
 
 const TOKEN_KEY = 'vaani_auth_token'
 
-export function getAuthToken(): string {
-  const stored = localStorage.getItem(TOKEN_KEY)
-  if (stored) return stored
-
-  // Generate a fallback evaluation JWT payload signed for local dev
-  const mockJwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLTEiLCJlbWFpbCI6ImFtYW5AdmFhbmkuYWkiLCJyb2xlIjoiYXV0aGVudGljYXRlZCJ9.fake_sig'
-  localStorage.setItem(TOKEN_KEY, mockJwt)
-  return mockJwt
+export function getAuthToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY)
 }
 
 export function setAuthToken(token: string): void {
@@ -158,11 +152,47 @@ export const voiceApi = {
 }
 
 // ---------------------------------------------------------------------------
+// Translation API
+// ---------------------------------------------------------------------------
+export const translationApi = {
+  async detect(text: string) {
+    return apiRequest<{
+      detectedLanguage: string
+      languageName: string
+      confidence: number
+      isCodeMixed: boolean
+    }>('/translation/detect', {
+      method: 'POST',
+      body: JSON.stringify({ text }),
+    })
+  },
+
+  async translate(payload: { text: string; targetLanguage: string; sourceLanguage?: string }) {
+    return apiRequest<{
+      originalText: string
+      translatedText: string
+      sourceLanguage: string
+      sourceLanguageName: string
+      targetLanguage: string
+      targetLanguageName: string
+      isIdentical: boolean
+      characterCount: number
+      provider: string
+    }>('/translation/translate', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+  },
+}
+
+// ---------------------------------------------------------------------------
 // Speech Studio API
 // ---------------------------------------------------------------------------
 export const speechApi = {
   async generate(payload: {
     text: string
+    translatedText?: string
+    sourceLanguage?: string
     title?: string
     targetLanguage: string
     voiceMode: VoiceMode
@@ -174,6 +204,28 @@ export const speechApi = {
       status: string
       asset: AudioAsset
     }>('/speech/generate', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+  },
+
+  async generateDemo(payload: {
+    text: string
+    translatedText?: string
+    sourceLanguage?: string
+    title?: string
+    targetLanguage?: string
+    standardVoiceId?: string
+    speed?: number
+  }) {
+    return apiRequest<{
+      success: boolean
+      isDemo: boolean
+      audioBase64?: string
+      durationSeconds?: number
+      asset: AudioAsset & { audioBase64?: string; mimeType?: string }
+      notice: string
+    }>('/speech/demo-generate', {
       method: 'POST',
       body: JSON.stringify(payload),
     })
@@ -195,18 +247,25 @@ export const speechApi = {
 export const audioApi = {
   async list(): Promise<AudioAsset[]> {
     const data = await apiRequest<{ assets: any[]; totalCount: number }>('/audio')
-    return data.assets.map((a) => ({
+    return (data.assets || []).map((a) => ({
       id: a.id,
-      userId: a.user_id,
+      userId: a.userId || a.user_id,
       title: a.title,
-      textPreview: a.title,
-      languageCode: 'hi-IN',
-      languageName: 'Hindi / Hinglish',
-      voiceMode: 'personal' as VoiceMode,
-      voiceLabel: 'Enrolled Voice',
-      durationSeconds: Math.max(1, Math.round((a.duration_ms || 14000) / 1000)),
-      fileSizeBytes: a.file_size || 1344044,
-      createdAt: a.created_at,
+      textPreview: a.textPreview || a.originalText || a.title,
+      languageCode: a.languageCode || a.target_language || 'hi-IN',
+      languageName:
+        a.languageName ||
+        (a.languageCode === 'en-IN'
+          ? 'Indian English'
+          : a.languageCode === 'auto'
+          ? 'Hinglish (Code-mixed)'
+          : 'Hindi (हिन्दी)'),
+      voiceMode: (a.voiceMode || a.voice_mode || 'standard') as VoiceMode,
+      voiceLabel: a.voiceLabel || (a.voiceMode === 'personal' ? 'Enrolled Voice' : 'Timbre Standard'),
+      durationSeconds:
+        a.durationSeconds || Math.max(1, Math.round((a.duration_ms || a.durationMs || 12000) / 1000)),
+      fileSizeBytes: a.fileSizeBytes || a.file_size || 1152000,
+      createdAt: a.createdAt || a.created_at,
       audioUrl: undefined, // Fresh signed URL requested on-demand when user clicks Play
     }))
   },
