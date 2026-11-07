@@ -9,7 +9,7 @@ import { dbRepo, isUuid, AudioAssetRecord, SpeechJobRecord } from '../../db/repo
 import { gnaniProvider } from '../../providers/gnani/index.js'
 import { SUPPORTED_LOCALES, SupportedLocale } from '../../providers/gnani/types.js'
 import { StorageService } from '../storage/storage.service.js'
-import { ensureValidWavBuffer, inspectAudioBuffer } from '../audio/audio.utils.js'
+import { ensureValidWavBuffer, generateDeterministicWav, inspectAudioBuffer } from '../audio/audio.utils.js'
 import { evaluateVoiceProfile } from '../voice/voice.service.js'
 import { LanguageDetectionService, translationService } from '../translation/index.js'
 
@@ -39,42 +39,6 @@ const demoSpeechSchema = z.object({
 const jobIdParamSchema = z.object({
   id: z.string().min(1, 'Speech Job ID is required'),
 })
-
-// Helper to generate a valid 48kHz 16-bit PCM WAV audio buffer for offline demo testing
-function generateDeterministicWav(durationSeconds: number): Buffer {
-  const sampleRate = 48000
-  const numChannels = 1
-  const bytesPerSample = 2
-  const totalSamples = Math.floor(sampleRate * durationSeconds)
-  const dataSize = totalSamples * numChannels * bytesPerSample
-
-  const buffer = Buffer.alloc(44 + dataSize)
-  // RIFF header
-  buffer.write('RIFF', 0)
-  buffer.writeUInt32LE(36 + dataSize, 4)
-  buffer.write('WAVE', 8)
-  // fmt subchunk
-  buffer.write('fmt ', 12)
-  buffer.writeUInt32LE(16, 16) // Subchunk1Size (16 for PCM)
-  buffer.writeUInt16LE(1, 20) // AudioFormat (1 for PCM)
-  buffer.writeUInt16LE(numChannels, 22)
-  buffer.writeUInt32LE(sampleRate, 24)
-  buffer.writeUInt32LE(sampleRate * numChannels * bytesPerSample, 28) // ByteRate
-  buffer.writeUInt16LE(numChannels * bytesPerSample, 32) // BlockAlign
-  buffer.writeUInt16LE(16, 34) // BitsPerSample
-  // data subchunk
-  buffer.write('data', 36)
-  buffer.writeUInt32LE(dataSize, 40)
-
-  // Generate subtle pleasant audio tone (sine wave 440Hz with gentle decay)
-  for (let i = 0; i < totalSamples; i++) {
-    const t = i / sampleRate
-    const sampleVal = Math.sin(2 * Math.PI * 440 * t) * Math.exp(-t * 0.15) * 12000
-    buffer.writeInt16LE(Math.floor(sampleVal), 44 + i * 2)
-  }
-
-  return buffer
-}
 
 /**
  * POST /api/speech/generate
