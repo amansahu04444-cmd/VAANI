@@ -37,3 +37,4 @@ services:
         sync: false
       - key: GNANI_TTS_TIMEOUT_MS
         value: 120000
+

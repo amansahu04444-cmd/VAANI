@@ -145,3 +145,4 @@ CREATE INDEX IF NOT EXISTS idx_voice_profiles_user_status ON public.voice_profil
 CREATE INDEX IF NOT EXISTS idx_audio_assets_user_created ON public.audio_assets(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_speech_jobs_user_status ON public.speech_jobs(user_id, status);
 CREATE INDEX IF NOT EXISTS idx_consent_events_user_type ON public.consent_events(user_id, event_type);
+
