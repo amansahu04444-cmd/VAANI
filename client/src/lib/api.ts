@@ -2,23 +2,34 @@ import type { AudioAsset, UserVoiceProfile, VoiceMode } from '../types'
 
 const TOKEN_KEY = 'vaani_auth_token'
 
-const API_BASE_URL = (
+const RAW_BASE = (
   (import.meta.env.VITE_API_BASE_URL as string | undefined) ||
   (import.meta.env.VITE_API_URL as string | undefined) ||
   ''
-).replace(/\/+$/, '')
+).trim()
+
+// Strip trailing slashes and trailing /api from base URL to prevent duplicate /api/api prefixes
+const API_BASE_ORIGIN = RAW_BASE.replace(/\/+$/, '').replace(/\/api$/, '')
 
 /**
- * Resolves API endpoints against optional custom backend origin (VITE_API_URL)
+ * Resolves API endpoints against custom backend origin (VITE_API_BASE_URL / VITE_API_URL)
  * or defaults to relative '/api' path.
+ * Guaranteed to produce exactly one '/api' prefix and never create duplicate '/api/api' or missing '/api'.
  */
 export function getFullApiUrl(endpoint: string): string {
   if (endpoint.startsWith('http://') || endpoint.startsWith('https://')) {
     return endpoint
   }
-  const cleanPath = endpoint.startsWith('/') ? endpoint : `/${endpoint}`
-  const apiPath = cleanPath.startsWith('/api') ? cleanPath : `/api${cleanPath}`
-  return `${API_BASE_URL}${apiPath}`
+  // Ensure leading slash
+  let cleanPath = endpoint.startsWith('/') ? endpoint : `/${endpoint}`
+  // Strip duplicate leading /api/api/ if present
+  cleanPath = cleanPath.replace(/^\/api\/api\//, '/api/')
+  // Ensure exactly one /api prefix
+  const apiPath = cleanPath.startsWith('/api/') || cleanPath === '/api'
+    ? cleanPath
+    : `/api${cleanPath}`
+
+  return `${API_BASE_ORIGIN}${apiPath}`
 }
 
 export function getAuthToken(): string | null {

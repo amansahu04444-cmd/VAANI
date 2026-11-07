@@ -7,7 +7,7 @@ import { CubeIllustration } from './CubeIllustration'
 import { BlockBadge } from './BlockBadge'
 import { formatDuration } from '../../lib/utils'
 import { useAudioEngine } from '../../context/AudioContext'
-import { audioApi } from '../../lib/api'
+import { audioApi, getFullApiUrl } from '../../lib/api'
 
 export interface VoxelAudioPlayerProps {
   assetId?: string
@@ -54,7 +54,14 @@ export const VoxelAudioPlayer: React.FC<VoxelAudioPlayerProps> = ({
   // Sync prop changes
   useEffect(() => {
     if (audioUrl) {
-      setResolvedUrl(audioUrl)
+      const normalized =
+        !audioUrl.startsWith('http://') &&
+        !audioUrl.startsWith('https://') &&
+        !audioUrl.startsWith('data:') &&
+        !audioUrl.startsWith('blob:')
+          ? getFullApiUrl(audioUrl)
+          : audioUrl
+      setResolvedUrl(normalized)
       setPlaybackError(null)
     }
   }, [audioUrl])
@@ -127,6 +134,15 @@ export const VoxelAudioPlayer: React.FC<VoxelAudioPlayerProps> = ({
           throw new Error('Failed to retrieve playable audio URL from storage.')
         }
 
+        const normalized =
+          !urlToPlay.startsWith('http://') &&
+          !urlToPlay.startsWith('https://') &&
+          !urlToPlay.startsWith('data:') &&
+          !urlToPlay.startsWith('blob:')
+            ? getFullApiUrl(urlToPlay)
+            : urlToPlay
+
+        urlToPlay = normalized
         setResolvedUrl(urlToPlay)
       } catch (err: any) {
         setIsLoadingUrl(false)
@@ -223,7 +239,14 @@ export const VoxelAudioPlayer: React.FC<VoxelAudioPlayerProps> = ({
     if (resolvedUrl) {
       setIsDownloading(true)
       try {
-        const resp = await fetch(resolvedUrl)
+        const targetUrl =
+          !resolvedUrl.startsWith('http://') &&
+          !resolvedUrl.startsWith('https://') &&
+          !resolvedUrl.startsWith('data:') &&
+          !resolvedUrl.startsWith('blob:')
+            ? getFullApiUrl(resolvedUrl)
+            : resolvedUrl
+        const resp = await fetch(targetUrl)
         if (!resp.ok) throw new Error(`Download failed with status ${resp.status}`)
         const blob = await resp.blob()
         const objectUrl = URL.createObjectURL(blob)

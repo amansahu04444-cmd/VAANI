@@ -1,6 +1,7 @@
 import express, { Request, Response, NextFunction } from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
+import crypto from 'crypto'
 import { config } from './config/env.js'
 import { checkSupabaseHealth } from './db/supabase.js'
 import { authRouter } from './modules/auth/auth.routes.js'
@@ -10,6 +11,22 @@ import { speechRouter } from './modules/speech/speech.routes.js'
 import { translationRouter } from './modules/translation/translation.routes.js'
 
 export const app = express()
+
+// Assign unique X-Request-Id to every inbound request for diagnostic tracing
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const reqId = (req.headers['x-request-id'] as string) || crypto.randomUUID()
+  req.headers['x-request-id'] = reqId
+  res.setHeader('X-Request-Id', reqId)
+  next()
+})
+
+// Normalize duplicate /api/api/ prefixes if requested by misconfigured frontend clients
+app.use((req: Request, _res: Response, next: NextFunction) => {
+  if (req.url.startsWith('/api/api/')) {
+    req.url = req.url.replace(/^\/api\/api\//, '/api/')
+  }
+  next()
+})
 
 // Security and parser middleware
 // Helmet configured with cross-origin CORP to enable HTML5 audio streaming from Vercel to Render
@@ -39,6 +56,24 @@ app.use(
 )
 app.use(express.json({ limit: '25mb' }))
 
+// Public Root Service Identifier (resolves 404 on base domain https://vaani-n3t1.onrender.com/)
+app.get('/', (_req: Request, res: Response) => {
+  res.status(200).json({
+    status: 'ok',
+    service: 'vaani-api',
+    message: 'VAANI Speech Studio API is operational.',
+    endpoints: {
+      health: '/health',
+      apiHealth: '/api/health',
+      auth: '/api/auth',
+      voice: '/api/voice',
+      speech: '/api/speech',
+      translation: '/api/translation',
+      audio: '/api/audio',
+    },
+  })
+})
+
 // Health check endpoints (GET /health and GET /api/health)
 const healthHandler = async (_req: Request, res: Response) => {
   const supabase = await checkSupabaseHealth()
@@ -62,11 +97,20 @@ app.use('/api/audio', audioRouter)
 app.use('/api/speech', speechRouter)
 app.use('/api/translation', translationRouter)
 
-// 404 handler
-app.use((_req: Request, res: Response) => {
+// Improved 404 Diagnostic Handler (Step 5)
+app.use((req: Request, res: Response) => {
+  const requestId = (req.headers['x-request-id'] as string) || 'req-unknown'
+  const requestedPath = req.originalUrl || req.url
+  const method = req.method
+
+  console.warn(`[404 NOT_FOUND] ${method} ${requestedPath} (Request ID: ${requestId})`)
+
   res.status(404).json({
     error: 'NOT_FOUND',
-    message: 'The requested route does not exist.',
+    message: `The requested route '${method} ${requestedPath}' does not exist on this server.`,
+    path: requestedPath,
+    method,
+    requestId,
   })
 })
 
